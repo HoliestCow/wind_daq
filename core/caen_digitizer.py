@@ -1,8 +1,35 @@
 from wind_daq.thrift.pyout.PTUS import Client
 import numpy as np
 
+# Enumerate types are just basic dictionaries
+#      to index location
+
+
+RECORDINGTYPE2ENUM = {
+    'Other':       1,
+    'Calibration': 2,
+    'Measurement': 3,
+    'Background':  4,
+    'Search':      5
+}
+
+UNITTYPE2ENUM = {
+    'Wearable':    1,
+    'Luggable':    2,
+    'Portal':      3,
+    'Stationary':  4,
+    'Aerial':      5,
+    'Vehicle':     6,
+    'Source':      7,
+    'Other':       8
+}
+
 
 class CAEN_Digitizer(Client):
+
+    def __init__(self):
+        # Create method to initialize the detectors present on the CAEN machine.
+        # This will populate self.system_configuration, or some sort of dictionary.
 
     def ping(self):
         """
@@ -10,27 +37,28 @@ class CAEN_Digitizer(Client):
 
         Returns The string literal "pong"
         """
-        out = 'pong'
-        return out
+        return "pong"
 
     def restart(self):
         """
         Tells the system to reboot
         """
         print('System restarting...')
+        self.isOnline = True
 
     def exit(self):
         """
         Exits the data acquisition software
         """
         print('Exiting DAQ software.')
+        self.isOnline = False
 
     def shutdown(self):
         """
         Powers down the PTU
         """
         print('Shutting down PTU')
-        pass
+        self.isOnline = False
 
     def startRecording(self, campaign, tag, measurementNumber, description, location, duration, recordingType):
         """
@@ -47,8 +75,24 @@ class CAEN_Digitizer(Client):
          - duration: Time in milliseconds for the PTU to run the measurement.  A zero is interpreted as infinite duration
          - recordingType: A type used to classify what the recording is
         """
-        
-        pass
+
+        # I have to instanteiate the missing information
+        #    to build out the missing information
+
+        recording_object = RecordingConfiguration(
+            unitId=None,
+            recordingId=None,
+            campaign=campaign,
+            tag=tag,
+            description=description,
+            location=location,
+            fileName=None,
+            recordingType=recordingType,
+            recordingDuration=duration,
+            POSIXStartTime=None,
+            measurementNumber=measurementNumber,):
+
+        return recording_object
 
     def getRecordingConfiguration(self, recordingId):
         """
@@ -58,7 +102,9 @@ class CAEN_Digitizer(Client):
         Parameters:
          - recordingId
         """
-        pass
+
+        # is this really a dictionary
+        return self.recording_container[recordingId]
 
     def setRecordingDuration(self, duration):
         """
@@ -69,7 +115,7 @@ class CAEN_Digitizer(Client):
         Parameters:
          - duration
         """
-        pass
+        self.recording_container[]
 
     def getRecordings(self):
         """
@@ -91,18 +137,22 @@ class CAEN_Digitizer(Client):
         Gets basic information from the PTU, such as name and current state.
         This is not meant to be called more than 1 time per second.
         """
-        pass
+        return self.isOnline
 
     def getUnitDefinition(self):
         """
         Gets basic information about the Unit, (name, versions, etc...)
         """
+        # Access self.system_configuration, return the info in herent to that.
+        # consider using an ordered dictionary to get all the keys called in the correct order,
+        #     then construct the string out
         pass
 
     def getSystemDefinition(self):
         """
         Gets the definition of the system, defining what the system is capable of
         """
+        # Define some string
         pass
 
     def getSystemConfiguration(self):
@@ -111,6 +161,7 @@ class CAEN_Digitizer(Client):
 
         Returns current system configuration
         """
+        # System config??
         pass
 
     def setSystemConfiguration(self, systemConfig):
@@ -122,6 +173,7 @@ class CAEN_Digitizer(Client):
         Parameters:
          - systemConfig
         """
+        # systemConfig is a dictionary???
         pass
 
     def getLatestData(self, requestedData):
@@ -135,12 +187,13 @@ class CAEN_Digitizer(Client):
         Parameters:
          - requestedData
         """
+        # What is requested data? recordingIDnumber??? What's the bahaviour for initializing?
         pass
 
     def getDataSinceTime(self, recordingId, lastTime, requestedData):
         """
          * Retreives all data since lastTime.
-        *
+         *
          * The recordingId SHOULD match a recordingId stored by the system (either a current active recording
          * or a previously saved recording). If the recordingId does not exist on the system, the system MUST
          * return an Exceptions.RetrievalError error.
@@ -153,6 +206,7 @@ class CAEN_Digitizer(Client):
          - lastTime
          - requestedData
         """
+        # Requested data is the data container????
         pass
 
     def getDataSinceTimeWithLimit(self, recordingId, lastTime, limit, requestedData):
@@ -174,6 +228,7 @@ class CAEN_Digitizer(Client):
          - limit
          - requestedData
         """
+        # Format of the lastTime????
         pass
 
     def getDataInTimeWindow(self, recordingId, startTime, endTime, requestedData):
