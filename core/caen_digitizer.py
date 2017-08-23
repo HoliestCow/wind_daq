@@ -1,7 +1,12 @@
 
 from wind_daq.thrift.pyout.PTUServices import Client
 # import numpy as np
-from .configuration import GAMMASPECTRUM_CONFIGURATION
+from .configuration import (GAMMASPECTRUM_CONFIGURATION,
+                            GAMMALIST_CONFIGURATION,
+                            SYSTEM_CONFIGURATION)
+from wind_daq.thrift.pyout.PTUPayload import RecordingConfiguration
+import thrift_uuid
+
 
 class CAEN_Digitizer(Client):
 
@@ -12,7 +17,8 @@ class CAEN_Digitizer(Client):
 
         # Describe the system itself. Currently we have 2 hookups, both NaI cylinders.
         self.gammaSpectrumConfigurations = GAMMASPECTRUM_CONFIGURATION
-
+        self.gammaListConfigurations = GAMMALIST_CONFIGURATION
+        self.systemConfiguration = SYSTEM_CONFIGURATION
 
     def ping(self):
         """
@@ -43,7 +49,8 @@ class CAEN_Digitizer(Client):
         print('Shutting down PTU')
         self.isOnline = False
 
-    def startRecording(self, campaign, tag, measurementNumber, description, location, duration, recordingType):
+    def startRecording(self, campaign, tag, measurementNumber, description,
+                       location, duration, recordingType):
         """
         Starts a measurement recording.
 
@@ -62,9 +69,11 @@ class CAEN_Digitizer(Client):
         # I have to instantiate the missing information
         #    to build out the missing information
 
+        recordingId = thrift_uuid.generate_thrift_uuid()
+
         self.recording_configuration = RecordingConfiguration(
             unitId=None,
-            recordingId=None,
+            recordingId=recordingId,
             campaign=campaign,
             tag=tag,
             description=description,

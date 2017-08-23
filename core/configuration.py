@@ -7,43 +7,18 @@ from wind_daq.thrift.pyout.GammaSensor import (GammaListAndSpectrumConfiguration
                                                GammaDoseConfiguration)
 from wind_daq.thrift.pyout.DetectorCharacteristics import (EnergyCalibration)
 from wind_daq.thrift.pyout.ComponentLocation import GridPositionAndOrientation
+import thrift_uuid
 import numpy as np
-import uuid
-import ctypes
-import hashlib
-
-
-def generate_thrift_uuid():
-    generated_uuid = uuid.uuid4().int
-    return convert_real_uuid_to_thrift_uuid(generated_uuid)
-
-
-def generate_thrift_uuid_with_seed(namespace, name):
-    generated_uuid = uuid.uuid3(hashlib.md5(namespace).digest(), name.encode('utf-8')).int
-    return convert_real_uuid_to_thrift_uuid(generated_uuid)
-
-
-def generate_thrift_uuid_with_name(name):
-    generated_uuid = uuid.uuid3(uuid.NAMESPACE_DNS, name.encode('utf-8')).int
-    return convert_real_uuid_to_thrift_uuid(generated_uuid)
-
-
-def convert_thrift_uuid_to_real_uuid(thrift_uuid):
-    return (ctypes.c_uint64(thrift_uuid.mostSignificantBits).value << 64) | ctypes.c_uint64(thrift_uuid.leastSignificantBits).value
-
-
-def convert_real_uuid_to_thrift_uuid(uuid):
-    return (ctypes.c_int64((uuid & 0xFFFFFFFFFFFFFFFF0000000000000000) >> 64).value,
-            ctypes.c_int64(uuid & 0xFFFFFFFFFFFFFFFF).value)
 
 # DEFINE UUID
-channel0_uuid = generate_thrift_uuid_with_name('NaIBar_1')
-channel1_uuid = generate_thrift_uuid_with_name('NaIBar_2')
+channel0_uuid = thrift_uuid.generate_thrift_uuid_with_name('NaIBar_1')
+channel1_uuid = thrift_uuid.generate_thrift_uuid_with_name('NaIBar_2')
 
 ###########################################################
 # ENERGY CALIBRATION. CONSTANT FOR ALL DETECTORS FOR NOW ##
 ###########################################################
-# channel_0_energycalibration = EnergyCalibration(channel=2**15, energy=4.3)  # What are the units of energy???
+# What are the units of energy???
+# channel_0_energycalibration = EnergyCalibration(channel=2**15, energy=4.3)
 # assume linear energy calibration, 15 bit adc, 4.3 MeV max
 # assume that the energy calibration is the same across all detectors
 max_energy = 4.3 * 1000  # assuming it's in keV
@@ -135,12 +110,15 @@ gammaListConfigs = [channel_0_gamma_list_config, channel_1_gamma_list_config]
 gammaGrossConfigs = [channel_0_gamma_grosscount_config, channel_1_gamma_grosscount_config]
 gammaDoseConfigs = [channel_0_gamma_dose_config, channel_1_gamma_dose_config]
 
-system_uuid = generate_thrift_uuid_with_name('UTKWIND_Array')
+system_uuid = thrift_uuid.generate_thrift_uuid_with_name('UTKWIND_Array')
+
+GAMMASPECTRUM_CONFIGURATION = gammaSpecConfigs
+GAMMALIST_CONFIGURATION = gammaListConfigs
 
 SYSTEM_CONFIGURATION = SystemConfiguration(
                            unitId=system_uuid,
-                           gammaSpectrumConfigurations=gammaSpecConfigs,
-                           gammaListConfigurations=gammaListConfigs,
+                           gammaSpectrumConfigurations=GAMMASPECTRUM_CONFIGURATION,
+                           gammaListConfigurations=GAMMALIST_CONFIGURATION,
                            gammaGrossCountConfigurations=gammaGrossConfigs,
                            gammaDoseConfigurations=gammaDoseConfigs,
                            neutronListConfigurations=None,
