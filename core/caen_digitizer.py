@@ -1,35 +1,18 @@
-from wind_daq.thrift.pyout.PTUS import Client
-import numpy as np
 
-# Enumerate types are just basic dictionaries
-#      to index location
-
-
-RECORDINGTYPE2ENUM = {
-    'Other':       1,
-    'Calibration': 2,
-    'Measurement': 3,
-    'Background':  4,
-    'Search':      5
-}
-
-UNITTYPE2ENUM = {
-    'Wearable':    1,
-    'Luggable':    2,
-    'Portal':      3,
-    'Stationary':  4,
-    'Aerial':      5,
-    'Vehicle':     6,
-    'Source':      7,
-    'Other':       8
-}
-
+from wind_daq.thrift.pyout.PTUServices import Client
+# import numpy as np
+from .configuration import GAMMASPECTRUM_CONFIGURATION
 
 class CAEN_Digitizer(Client):
 
     def __init__(self):
         # Create method to initialize the detectors present on the CAEN machine.
         # This will populate self.system_configuration, or some sort of dictionary.
+        self.isRecording = False
+
+        # Describe the system itself. Currently we have 2 hookups, both NaI cylinders.
+        self.gammaSpectrumConfigurations = GAMMASPECTRUM_CONFIGURATION
+
 
     def ping(self):
         """
@@ -76,10 +59,10 @@ class CAEN_Digitizer(Client):
          - recordingType: A type used to classify what the recording is
         """
 
-        # I have to instanteiate the missing information
+        # I have to instantiate the missing information
         #    to build out the missing information
 
-        recording_object = RecordingConfiguration(
+        self.recording_configuration = RecordingConfiguration(
             unitId=None,
             recordingId=None,
             campaign=campaign,
@@ -90,9 +73,10 @@ class CAEN_Digitizer(Client):
             recordingType=recordingType,
             recordingDuration=duration,
             POSIXStartTime=None,
-            measurementNumber=measurementNumber,):
+            measurementNumber=measurementNumber,)
+        self.isRecording = True
 
-        return recording_object
+        return self.recording_configuration
 
     def getRecordingConfiguration(self, recordingId):
         """
@@ -102,9 +86,7 @@ class CAEN_Digitizer(Client):
         Parameters:
          - recordingId
         """
-
-        # is this really a dictionary
-        return self.recording_container[recordingId]
+        return self.recording_configuration
 
     def setRecordingDuration(self, duration):
         """
@@ -115,7 +97,8 @@ class CAEN_Digitizer(Client):
         Parameters:
          - duration
         """
-        self.recording_container[]
+        self.recording_configuration.recordingDuration = duration
+        return
 
     def getRecordings(self):
         """
@@ -161,7 +144,7 @@ class CAEN_Digitizer(Client):
 
         Returns current system configuration
         """
-        # System config??
+
         pass
 
     def setSystemConfiguration(self, systemConfig):
@@ -187,6 +170,9 @@ class CAEN_Digitizer(Client):
         Parameters:
          - requestedData
         """
+
+        # requestData = list of component ids to select a subset of the data.
+
         # What is requested data? recordingIDnumber??? What's the bahaviour for initializing?
         pass
 
@@ -249,6 +235,8 @@ class CAEN_Digitizer(Client):
          - endTime
          - requestedData
         """
+
+        # startTime = POSIX Time * 1000
         pass
 
     def getDataInTimeWindowWithLimit(self, recordingId, startTime, endTime, limit, requestedData):
