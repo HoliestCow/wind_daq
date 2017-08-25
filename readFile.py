@@ -72,7 +72,7 @@ def main():
 def read_fifo(fifo_handle, logger):
     tryCount = 0
     while (tryCount < 30):
-        time.sleep(2)  # waits for 2 seconds to see if more data is coming in
+        # time.sleep(2)  # waits for 2 seconds to see if more data is coming in
         # tries again to find data
         try:
             # data = fifo.readlines()#[5:] #first six lines are headers, ignore
@@ -85,9 +85,10 @@ def read_fifo(fifo_handle, logger):
                 extras = words[2]  # have no idea what this is but CAEN puts it in output file
                 qshort = words[3]  # integrated charge in counts of short window, useful for PSD
                 print("Qlong is: " + qlong)
+            tryCount = 0
         except:
-                logger.debug('Waiting for more data in pipe')
-                continue
+            logger.debug('Waiting for more data in pipe')
+            time.sleep(2)
         tryCount += 1
 
     logger.debug('Pipe no longer active...quitting')
