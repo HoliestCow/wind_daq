@@ -1,3 +1,6 @@
+# DONT USE THIS, THIS IS VERSION ONE NOT FOR GAMETIME 
+
+
 import logging
 import os
 # import struct
