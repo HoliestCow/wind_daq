@@ -6,6 +6,7 @@ from .configuration import (GAMMASPECTRUM_CONFIGURATION,
                             SYSTEM_CONFIGURATION)
 from wind_daq.thrift.pyout.PTUPayload import RecordingConfiguration
 import thrift_uuid
+import time
 
 
 class CAEN_Digitizer(Client):
@@ -14,12 +15,25 @@ class CAEN_Digitizer(Client):
         # Create method to initialize the detectors present on the CAEN machine.
         # This will populate self.system_configuration, or some sort of dictionary.
         self.isRecording = False
+        self.isOnline = True
+        self.name = "CAEN Digitizer"
+
 
         # Describe the system itself. Currently we have 2 hookups, both NaI cylinders.
         self.gammaSpectrumConfigurations = GAMMASPECTRUM_CONFIGURATION
         self.gammaListConfigurations = GAMMALIST_CONFIGURATION
         self.systemConfiguration = SYSTEM_CONFIGURATION
+        self.recordingContainer = {}
 
+        # intialize system status
+        self.status = Status(unitId=self.systemConfiguration.unitId,
+                             isRecording=None,
+                             recordingId=None,
+                             hardDriveUsedPercent=None,
+                             batteryRemainingPercent=None,
+                             systemTime=None,)
+
+        self.SystemDefinition = 
     def ping(self):
         """
         Simple test for determining Thrift connectivity.
@@ -33,6 +47,8 @@ class CAEN_Digitizer(Client):
         Tells the system to reboot
         """
         print('System restarting...')
+        self.isOnline = False
+        self.recordingContainer = {}
         self.isOnline = True
 
     def exit(self):
@@ -41,6 +57,7 @@ class CAEN_Digitizer(Client):
         """
         print('Exiting DAQ software.')
         self.isOnline = False
+        self.recordingContainer = {}
 
     def shutdown(self):
         """
@@ -48,6 +65,7 @@ class CAEN_Digitizer(Client):
         """
         print('Shutting down PTU')
         self.isOnline = False
+        self.recordingContainer = {}
 
     def startRecording(self, campaign, tag, measurementNumber, description,
                        location, duration, recordingType):
@@ -70,21 +88,30 @@ class CAEN_Digitizer(Client):
         #    to build out the missing information
 
         recordingId = thrift_uuid.generate_thrift_uuid()
+        unitId = self.systemConfiguration.unitId
+        filename = self._generate_filename(recordingId,
+                                           campaign,
+                                           tag,
+                                           measurementNumber,
+                                           recordingType,
+                                           duration)
+        POSIXStartTime = self._get_posix_time()
+
+        self.recordingId = recordingId
 
         self.recording_configuration = RecordingConfiguration(
-            unitId=None,
+            unitId=unitId,
             recordingId=recordingId,
             campaign=campaign,
             tag=tag,
             description=description,
             location=location,
-            fileName=None,
+            fileName=filename,
             recordingType=recordingType,
             recordingDuration=duration,
-            POSIXStartTime=None,
+            POSIXStartTime=POSIXStartTime,
             measurementNumber=measurementNumber,)
         self.isRecording = True
-
         return self.recording_configuration
 
     def getRecordingConfiguration(self, recordingId):
@@ -106,14 +133,23 @@ class CAEN_Digitizer(Client):
         Parameters:
          - duration
         """
-        self.recording_configuration.recordingDuration = duration
+        systemTime = self._get_posix_time()
+        POSIXStartTime = self.recording_configuration.POSIXStartTime
+        if duration < (systemTime - POSIXStartTime):
+            self.endRecording()
+            self.recording_configuration.recordingDuration = (systemTime - POSIXStartTime)
+        else:
+            self.recording_configuration.recordingDuration = duration
         return
 
     def getRecordings(self):
         """
         Returns all recordings currently on the PTU.
         """
-        pass
+        # TODO: What is the definition of recordings? As in all the filenames?
+        #       All the runs done on the PTU for this session?
+        #       Everything in this campaign?????
+        return self.recording_configuration  # this is probably not correct
 
     def endRecording(self):
         """
@@ -122,14 +158,27 @@ class CAEN_Digitizer(Client):
 
         Returns True if recording stopped successfully, False if otherwise
         """
-        pass
+        try:
+            self.setRecordingDuration(self.recording_configuration.recordingDuration)
+            self.recordingContainer[self.recordingId] = self.getRecording
+            self.isRecording = False
+            return True
+        except:
+            return False
 
     def getStatus(self):
         """
         Gets basic information from the PTU, such as name and current state.
         This is not meant to be called more than 1 time per second.
         """
-        return self.isOnline
+        # I have to update status whenever this is called
+        self.status.isRecording = self.isRecording
+        self.status.recordingId = self.recordingId
+        # HACK: Set to a constant value
+        self.status.hardDriveUsedPercent = 25.0
+        self.status.batteryRemainingPercent = 25.0
+        self.status.systemTime = self._get_posix_time()
+        return self.status
 
     def getUnitDefinition(self):
         """
@@ -138,14 +187,13 @@ class CAEN_Digitizer(Client):
         # Access self.system_configuration, return the info in herent to that.
         # consider using an ordered dictionary to get all the keys called in the correct order,
         #     then construct the string out
-        pass
+        return self.UnitDefinition
 
     def getSystemDefinition(self):
         """
         Gets the definition of the system, defining what the system is capable of
         """
-        # Define some string
-        pass
+        return self.SystemDefinition
 
     def getSystemConfiguration(self):
         """
@@ -153,8 +201,7 @@ class CAEN_Digitizer(Client):
 
         Returns current system configuration
         """
-
-        pass
+        return self.SystemConfiguration
 
     def setSystemConfiguration(self, systemConfig):
         """
@@ -165,8 +212,8 @@ class CAEN_Digitizer(Client):
         Parameters:
          - systemConfig
         """
-        # systemConfig is a dictionary???
-        pass
+        self.systemConfiguration = systemConfig
+        return self.systemConfiguration
 
     def getLatestData(self, requestedData):
         """
@@ -179,11 +226,9 @@ class CAEN_Digitizer(Client):
         Parameters:
          - requestedData
         """
-
         # requestData = list of component ids to select a subset of the data.
-
-        # What is requested data? recordingIDnumber??? What's the bahaviour for initializing?
-        pass
+        # TODO: Define this once I figured out all the data yankers
+        return
 
     def getDataSinceTime(self, recordingId, lastTime, requestedData):
         """
@@ -201,8 +246,14 @@ class CAEN_Digitizer(Client):
          - lastTime
          - requestedData
         """
-        # Requested data is the data container????
-        pass
+        # TODO: Implement some form of storage on the laptop. This is not done here, but is needed here. I'm not sure how data is retrieved from a recordingConfiguration object?
+        if recordingId in self.recordingContainer:
+            output = []
+
+            return output
+        else:
+            return Exceptions.RetrievalError
+        return
 
     def getDataSinceTimeWithLimit(self, recordingId, lastTime, limit, requestedData):
         """
@@ -502,3 +553,32 @@ class CAEN_Digitizer(Client):
          - definition
         """
         pass
+
+    def _generate_filename(self, recordingId, campaign, tag, measurementNumber,
+                           recordingType, duration):
+        filename = '{}_{}_{}_{}_{}_{}'.format(recordingId,
+                                              campaign,
+                                              tag,
+                                              measurementNumber,
+                                              recordingType,
+                                              duration)
+        return filename
+
+    def _get_posix_time(self):
+        return int(time.time() * 1000.0)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

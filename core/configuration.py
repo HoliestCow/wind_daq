@@ -1,7 +1,9 @@
 
 from wind_daq.thrift.pyout.PTUPayload.ttypes import (SystemConfiguration,
+                                                     SystemDefinition,
                                                      SIPMSettings,
-                                                     SIPM_PMTSettings)
+                                                     SIPM_PMTSettings,
+                                                     GammaListAndSpectrumDefinition)
 from wind_daq.thrift.pyout.GammaSensor import (GammaListAndSpectrumConfiguration,
                                                GammaGrossCountConfiguration,
                                                GammaDoseConfiguration)
@@ -31,6 +33,10 @@ for i in range(0, len(channel_index)):
                                             energy=channel_index2energy[i])]
 
 # TODO: Is this class dependent on channel or device?
+
+
+# DEFINING CONFIGURATIONS #
+
 ##########################################
 # NaIBar_1 ###############################
 ##########################################
@@ -116,16 +122,145 @@ GAMMASPECTRUM_CONFIGURATION = gammaSpecConfigs
 GAMMALIST_CONFIGURATION = gammaListConfigs
 
 SYSTEM_CONFIGURATION = SystemConfiguration(
-                           unitId=system_uuid,
-                           gammaSpectrumConfigurations=GAMMASPECTRUM_CONFIGURATION,
-                           gammaListConfigurations=GAMMALIST_CONFIGURATION,
-                           gammaGrossCountConfigurations=gammaGrossConfigs,
-                           gammaDoseConfigurations=gammaDoseConfigs,
-                           neutronListConfigurations=None,
-                           neutronSpectrumConfigurations=None,
-                           neutronGrossCountConfigurations=None,
-                           contextVideoConfigurations=None,
-                           contextPointCloudConfigurations=None,
-                           contextVoxelConfigurations=None,
-                           contextMeshConfigurations=None,
-                           algorithmConfigurations=None)
+    unitId=system_uuid,
+    gammaSpectrumConfigurations=GAMMASPECTRUM_CONFIGURATION,
+    gammaListConfigurations=GAMMALIST_CONFIGURATION,
+    gammaGrossCountConfigurations=gammaGrossConfigs,
+    gammaDoseConfigurations=gammaDoseConfigs)
+# DEFINING DEFINITIONS #
+
+channel_0_name = 'NaIBar_1'
+channel_1_name = 'NaIBar_2'
+vendor_name = 'UTKRadIDEAS'  # This may be Scionix
+# 54x54x152mm
+RPP = RectangularDimensions(length=54.0/10.0,
+                            width=54.0/10.0,
+                            height=152.0/10.0)
+naibar_dimensions = Dimensions(cylindricalDimensions=None,
+                               sphericalDimensions=None,
+                               rectangularDimensions=RPP)
+naibar_material = 'NaI'  # This may need to be a number
+startingGammaConfig = channel_1_gamma_spec_config  # TODO: Check this
+angularEfficiencies = None # ???
+numberofchannels = 2**15
+
+channel_0_gamma_spectrum_definition = GammaListAndSpectrumDefinition(
+    componentId=channel0_uuid,
+    componentName=channel_0_name,
+    vendorName=vendor_name,
+    serialNumber=None,
+    numberOfChannels=numberofchannels,
+    physicalDimensions=naibar_dimensions,
+    detectorMaterial=naibar_material,
+    startingGammaConfiguration=channel_0_gamma_spec_config,
+    angularEfficiencies=angularEfficiencies)
+channel_1_gamma_spectrum_definition = GammaListAndSpectrumDefinition(
+    componentId=channel1_uuid,
+    componentName=channel_1_name,
+    vendorName=vendor_name,
+    serialNumber=None,
+    numberOfChannels=numberofchannels,
+    physicalDimensions=naibar_dimensions,
+    detectorMaterial=naibar_material,
+    startingGammaConfiguration=channel_1_gamma_spec_config,
+    angularEfficiencies=angularEfficiencies)
+
+channel_0_gamma_list_definition = GammaListAndSpectrumDefinition(
+    componentId=channel0_uuid,
+    componentName=channel_0_name,
+    vendorName=vendor_name,
+    serialNumber=None,
+    numberOfChannels=numberofchannels,
+    physicalDimensions=naibar_dimensions,
+    detectorMaterial=naibar_material,
+    startingGammaConfiguration=channel_0_gamma_list_config,
+    angularEfficiencies=angularEfficiencies)
+channel_1_gamma_list_definition = GammaListAndSpectrumDefinition(
+    componentId=channel1_uuid,
+    componentName=channel_1_name,
+    vendorName=vendor_name,
+    serialNumber=None,
+    numberOfChannels=numberofchannels,
+    physicalDimensions=naibar_dimensions,
+    detectorMaterial=naibar_material,
+    startingGammaConfiguration=channel_1_gamma_list_config,  # TODO: This is probably fucked
+    angularEfficiencies=angularEfficiencies)
+
+channel_0_gamma_grosscount_definition = GammaGrossCountDefinition(
+    componentId=channel0_uuid,
+    componentName=channel_0_name,
+    vendorName=vendor_name,
+    serialNumber=None,
+    physicalDimensions=naibar_dimensions,
+    detectorMaterial=naibar_material,
+    startingGammaGrossCountConfiguration=channel_0_gamma_grosscount_config,
+    angularEfficiencies=angularEfficiencies)
+channel_1_gamma_grosscount_definition = GammaGrossCountDefinition(
+    componentId=channel1_uuid,
+    componentName=channel_1_name,
+    vendorName=vendor_name,
+    serialNumber=None,
+    physicalDimensions=naibar_dimensions,
+    detectorMaterial=naibar_material,
+    startingGammaGrossCountConfiguration=channel_1_gamma_grosscount_config,
+    angularEfficiencies=angularEfficiencies)
+
+# TODO: Are the angular efficiencies for each of these GAMMA definitions the same???
+# TODO: Units of angular efficiency???
+
+channel_0_gamma_dose_definition = GammaDoseDefinition(
+    componentId=channel0_uuid,
+    componentName=channel_0_name,
+    vendorName=vendor_name,
+    serialNumber=None,
+    physicalDimensions=naibar_dimensions,
+    detectorMaterial=naibar_material,
+    startingGammaDoseConfiguration=channel_0_gamma_dose_config,
+    angularEfficiencies=angularEfficiencies)
+channel_1_gamma_dose_definition = GammaDoseDefinition(
+    componentId=channel1_uuid,
+    componentName=channel_1_name,
+    vendorName=vendor_name,
+    serialNumber=None,
+    physicalDimensions=naibar_dimensions,
+    detectorMaterial=naibar_material,
+    startingGammaDoseConfiguration=channel_1_gamma_dose_config,
+    angularEfficiencies=angularEfficiencies)
+
+system_gamma_spectrum_definitions = [channel_0_gamma_spectrum_definition,
+                                     channel_1_gamma_spectrum_definition]
+system_gamma_list_definintions = [channel_0_gamma_list_definition,
+                                  channel_1_gamma_list_definition]
+system_gamma_grosscount_definitions = [channel_0_gamma_grosscount_definition,
+                                      channel_1_gamma_grosscount_definition]
+system_gamma_dose_definitions = [channel_0_gamma_dose_definition,
+                                channel_1_gamma_dose_definition]
+
+SYSTEM_DEFINITION = SystemDefinition(
+    gammaSpectrumDefinitions=system_gamma_spectrum_definitions,
+    gammaListDefinitions=system_gamma_list_definintions,
+    gammaGrossCountDefinitions=system_gamma_grosscount_definitions,
+    gammaDoseDefinitions=system_gamma_dose_definitions)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -3,6 +3,7 @@ import os
 # import struct
 import time
 
+
 def main():
     logging.basicConfig(format='%(asctime)s %(message)s')  # filename='DocTestLog')
     log = logging.getLogger()
