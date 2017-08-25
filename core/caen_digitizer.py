@@ -1,12 +1,14 @@
 
 from wind_daq.thrift.pyout.PTUServices import Client
-# import numpy as np
-from .configuration import (GAMMASPECTRUM_CONFIGURATION,
-                            GAMMALIST_CONFIGURATION,
-                            SYSTEM_CONFIGURATION)
-from wind_daq.thrift.pyout.PTUPayload import RecordingConfiguration
+from wind_daq.thrift.pyout.PTUPayload import (RecordingConfiguration,
+                                              DataPayload,
+                                              Status)
+from wind_daq.thrift.pyout.Health import Health
+from .configuration import (SYSTEM_CONFIGURATION,
+                            SYSTEM_DEFINITION)
 import thrift_uuid
 import time
+# import numpy as np
 
 
 class CAEN_Digitizer(Client):
@@ -17,23 +19,28 @@ class CAEN_Digitizer(Client):
         self.isRecording = False
         self.isOnline = True
         self.name = "CAEN Digitizer"
+        # HACK: Faking constant hard drive and battery stuff
+        self.hardDriveUsedPercent = 25.0
+        self.batteryRemainingPercent = 25.0
+
+        # HACK: Health is fixed
+        self.health = Health('Nominal')
 
 
         # Describe the system itself. Currently we have 2 hookups, both NaI cylinders.
-        self.gammaSpectrumConfigurations = GAMMASPECTRUM_CONFIGURATION
-        self.gammaListConfigurations = GAMMALIST_CONFIGURATION
         self.systemConfiguration = SYSTEM_CONFIGURATION
         self.recordingContainer = {}
 
         # intialize system status
         self.status = Status(unitId=self.systemConfiguration.unitId,
-                             isRecording=None,
+                             isRecording=self.isRecording,
                              recordingId=None,
-                             hardDriveUsedPercent=None,
-                             batteryRemainingPercent=None,
-                             systemTime=None,)
+                             hardDriveUsedPercent=self.hardDriveUsedPercent,
+                             batteryRemainingPercent=self.batteryRemainingPercent,
+                             systemTime=self._get_posix_time())
 
-        self.SystemDefinition = 
+        self.SystemDefinition = SYSTEM_DEFINITION
+
     def ping(self):
         """
         Simple test for determining Thrift connectivity.
@@ -99,7 +106,7 @@ class CAEN_Digitizer(Client):
 
         self.recordingId = recordingId
 
-        self.recording_configuration = RecordingConfiguration(
+        self.recordingConfiguration = RecordingConfiguration(
             unitId=unitId,
             recordingId=recordingId,
             campaign=campaign,
@@ -112,7 +119,7 @@ class CAEN_Digitizer(Client):
             POSIXStartTime=POSIXStartTime,
             measurementNumber=measurementNumber,)
         self.isRecording = True
-        return self.recording_configuration
+        return self.recordingConfiguration
 
     def getRecordingConfiguration(self, recordingId):
         """
@@ -122,7 +129,7 @@ class CAEN_Digitizer(Client):
         Parameters:
          - recordingId
         """
-        return self.recording_configuration
+        return self.recordingConfiguration
 
     def setRecordingDuration(self, duration):
         """
@@ -134,12 +141,12 @@ class CAEN_Digitizer(Client):
          - duration
         """
         systemTime = self._get_posix_time()
-        POSIXStartTime = self.recording_configuration.POSIXStartTime
+        POSIXStartTime = self.recordingConfiguration.POSIXStartTime
         if duration < (systemTime - POSIXStartTime):
             self.endRecording()
-            self.recording_configuration.recordingDuration = (systemTime - POSIXStartTime)
+            self.recordingConfiguration.recordingDuration = (systemTime - POSIXStartTime)
         else:
-            self.recording_configuration.recordingDuration = duration
+            self.recordingConfiguration.recordingDuration = duration
         return
 
     def getRecordings(self):
@@ -149,7 +156,7 @@ class CAEN_Digitizer(Client):
         # TODO: What is the definition of recordings? As in all the filenames?
         #       All the runs done on the PTU for this session?
         #       Everything in this campaign?????
-        return self.recording_configuration  # this is probably not correct
+        return self.recordingConfiguration  # this is probably not correct
 
     def endRecording(self):
         """
@@ -159,7 +166,7 @@ class CAEN_Digitizer(Client):
         Returns True if recording stopped successfully, False if otherwise
         """
         try:
-            self.setRecordingDuration(self.recording_configuration.recordingDuration)
+            self.setRecordingDuration(self.recordingConfiguration.recordingDuration)
             self.recordingContainer[self.recordingId] = self.getRecording
             self.isRecording = False
             return True
@@ -226,9 +233,30 @@ class CAEN_Digitizer(Client):
         Parameters:
          - requestedData
         """
-        # requestData = list of component ids to select a subset of the data.
-        # TODO: Define this once I figured out all the data yankers
-        return
+        # Requested Data = detector index
+        gammaSpectrumData = []
+        gammaListData = []
+        gammaGrossCountData = []
+        gammaDoseData = []  # ???
+
+        for i in range(len(requestedData)):
+            desired = requestedData[i]
+            gammaSpectrumData += [self._get_spectra(desired, -1)]
+            gammaListData += [self._get_list(desired, -1)]
+            gammaGrossCountData += [self._get_counts(desired, -1)]
+            gammaDoseData += [self._get_dose(desired, -1)]
+
+        data = DataPayload(unitId=self.systemConfiguration.componentId,
+                           timeStamp=None,  # TODO: Fill this
+                           systemHealth=self.health,
+                           isEOF=not self.isRecording,
+                           recordingConfig=self.recordingConfiguration,
+                           # here all the way after are list
+                           gammaSpectrumData=gammaSpectrumData,
+                           gammaListData=gammaListData,
+                           gammaGrossCountData=gammaGrossCountData,
+                           gammaDoseData=gammaDoseData)
+        return data
 
     def getDataSinceTime(self, recordingId, lastTime, requestedData):
         """
@@ -567,8 +595,17 @@ class CAEN_Digitizer(Client):
     def _get_posix_time(self):
         return int(time.time() * 1000.0)
 
+    def _get_spectra(self, det_name):
+        pass
 
+    def _get_counts(self, det_name):
+        pass
 
+    def _get_list(self, det_name):
+        pass
+
+    def _get_dose(self, det_name):
+        pass
 
 
 

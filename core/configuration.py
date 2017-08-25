@@ -6,8 +6,12 @@ from wind_daq.thrift.pyout.PTUPayload.ttypes import (SystemConfiguration,
                                                      GammaListAndSpectrumDefinition)
 from wind_daq.thrift.pyout.GammaSensor import (GammaListAndSpectrumConfiguration,
                                                GammaGrossCountConfiguration,
-                                               GammaDoseConfiguration)
-from wind_daq.thrift.pyout.DetectorCharacteristics import (EnergyCalibration)
+                                               GammaDoseConfiguration,
+                                               GammaGrossCountDefinition,
+                                               GammaDoseDefinition)
+from wind_daq.thrift.pyout.DetectorCharacteristics import (EnergyCalibration,
+                                                           RectangularDimensions,
+                                                           Dimensions)
 from wind_daq.thrift.pyout.ComponentLocation import GridPositionAndOrientation
 import thrift_uuid
 import numpy as np
@@ -141,7 +145,7 @@ naibar_dimensions = Dimensions(cylindricalDimensions=None,
                                rectangularDimensions=RPP)
 naibar_material = 'NaI'  # This may need to be a number
 startingGammaConfig = channel_1_gamma_spec_config  # TODO: Check this
-angularEfficiencies = None # ???
+angularEfficiencies = None  # ???
 numberofchannels = 2**15
 
 channel_0_gamma_spectrum_definition = GammaListAndSpectrumDefinition(
@@ -232,9 +236,9 @@ system_gamma_spectrum_definitions = [channel_0_gamma_spectrum_definition,
 system_gamma_list_definintions = [channel_0_gamma_list_definition,
                                   channel_1_gamma_list_definition]
 system_gamma_grosscount_definitions = [channel_0_gamma_grosscount_definition,
-                                      channel_1_gamma_grosscount_definition]
+                                       channel_1_gamma_grosscount_definition]
 system_gamma_dose_definitions = [channel_0_gamma_dose_definition,
-                                channel_1_gamma_dose_definition]
+                                 channel_1_gamma_dose_definition]
 
 SYSTEM_DEFINITION = SystemDefinition(
     gammaSpectrumDefinitions=system_gamma_spectrum_definitions,
