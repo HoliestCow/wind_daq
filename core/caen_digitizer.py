@@ -103,9 +103,7 @@ class CAEN_Digitizer(Client):
                                            recordingType,
                                            duration)
         POSIXStartTime = self._get_posix_time()
-
         self.recordingId = recordingId
-
         self.recordingConfiguration = RecordingConfiguration(
             unitId=unitId,
             recordingId=recordingId,
@@ -237,10 +235,10 @@ class CAEN_Digitizer(Client):
         gammaSpectrumData = []
         gammaListData = []
         gammaGrossCountData = []
-        gammaDoseData = []  # ???
+        gammaDoseData = []  # TODO: the fuck is this?
 
         for i in range(len(requestedData)):
-            desired = requestedData[i]
+            desired = requestedData[i]  # this represents the desired detector
             gammaSpectrumData += [self._get_spectra(desired, -1)]
             gammaListData += [self._get_list(desired, -1)]
             gammaGrossCountData += [self._get_counts(desired, -1)]
@@ -274,11 +272,35 @@ class CAEN_Digitizer(Client):
          - lastTime
          - requestedData
         """
-        # TODO: Implement some form of storage on the laptop. This is not done here, but is needed here. I'm not sure how data is retrieved from a recordingConfiguration object?
-        if recordingId in self.recordingContainer:
-            output = []
+        # Requested Data = detector index
 
-            return output
+        if recordingId in self.recordingContainer:
+            gammaSpectrumData = []
+            gammaListData = []
+            gammaGrossCountData = []
+            gammaDoseData = []  # TODO: the fuck is this?
+
+            # generate the time index
+            timeindex = self._get_timeindex(self, lastTime)
+
+            for i in range(len(requestedData)):
+                desired = requestedData[i]  # this represents the desired detector
+                gammaSpectrumData += [self._get_spectra(desired, timeindex)]
+                gammaListData += [self._get_list(desired, timeindex)]
+                gammaGrossCountData += [self._get_counts(desired, timeindex)]
+                gammaDoseData += [self._get_dose(desired, timeindexb)]
+
+            data = DataPayload(unitId=self.systemConfiguration.componentId,
+                               timeStamp=None,  # TODO: Fill this
+                               systemHealth=self.health,
+                               isEOF=not self.isRecording,
+                               recordingConfig=self.recordingConfiguration,
+                               # here all the way after are list
+                               gammaSpectrumData=gammaSpectrumData,
+                               gammaListData=gammaListData,
+                               gammaGrossCountData=gammaGrossCountData,
+                               gammaDoseData=gammaDoseData)
+            return data
         else:
             return Exceptions.RetrievalError
         return
@@ -592,6 +614,11 @@ class CAEN_Digitizer(Client):
                                               duration)
         return filename
 
+    def _get_timeindex(self, timesince):
+        POSIXStartTime = self.recordingConfiguration.POSIXStartTime
+        self._get_tagtime()
+        return timeindex
+
     def _get_posix_time(self):
         return int(time.time() * 1000.0)
 
@@ -607,6 +634,8 @@ class CAEN_Digitizer(Client):
     def _get_dose(self, det_name):
         pass
 
+    def _get_tagtime(self):
+        return 
 
 
 
