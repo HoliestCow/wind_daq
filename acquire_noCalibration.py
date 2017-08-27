@@ -1,11 +1,11 @@
 # This code looks for the file that the digitizer is writing to and pulls data from it generating arrays of list mode data
 # checks pipe for new data every x number of seconds (bufferTime variable)
 # outputs:
-# array of triggerTimeTag which is time in ns since acquisition started
-# array of qlong which is the total energy in keV of event (see m and b for calibration coefficients)
+# array of triggerTime which is number of clock ticks (4ns/click) since acquisition started
+# array of qlong which the total charge in counts deposited into the ADC for each event
 # an array of "extra" which is something from CAEN (who knows)
 # an array of qshort which is the total charge in counts deposited in the short integration window used for PSD
-# The digitizer MUST be running before executing this code, also works in offline mode but will keep polling file indefinitely
+# The digitizer MUST be running before executing this code
 
 
 #import the things
@@ -24,10 +24,6 @@ def main():
 
     # Name of pipe (e.g. inputFile or inputFile.txt or inputFile.dat)
     FIFO = 'inputFile'
-
-    #calibration factors, assuming linear calibration y=mx+b for now
-    m = 0.2
-    b = 0
 
     # Amount of time in seconds want to wait before checking pipe for more data
     bufferTime = 2
@@ -51,9 +47,6 @@ def main():
         extras = []
         qshort = []
 
-        # initialize variable for starting time of acquistion= 0
-        initTime = 0.0
-
         while True:
             data = fifo.read().splitlines() #split incoming data into lines based on carriage return
 
@@ -64,27 +57,20 @@ def main():
                 newPipe = False
 
             #uncomment for debugging (check whether data coming in)
-            #print("Received Data: " + str(data))
-            #print('lololololololol')
+            print("Received Data: " + str(data))
+            print('lololololololol')
 
             for line in data:
                 words = line.split()  # split line into space delimited words
 
-                #trigger time is in clock clicks 4ns/tick, seems to start as some insanely large number so subtracting out as initial time
-                if len(triggerTimeTag) == 0:
-                    initTime = float(words[0])
-                    #print(initTime)
-                #print("Length of Trigger Time: " + str(len(triggerTimeTag)))
-
                 #build 1D arrays with list mode data
-                # also putting trigger time in seconds instead of clock ticks and calibrating
-                triggerTimeTag.append((float(words[0])-initTime)/4)  # trigger time in ns (4ns/clock tick)
-                qlong.append((float(words[1])*m) + b)  # total integrated energy of event in rough keV
+                triggerTimeTag.append(int(words[0]))  # trigger time in clock units (4ns/tick)
+                qlong.append(int(words[1]))  # total integrated charge of event in counts
                 extras.append(int(words[2]))  # have no idea what this is but CAEN puts it in output file
                 qshort.append(int(words[3]))  # integrated charge in counts of short window, useful for PSD
 
                 #uncomment for debugging
-                #print("Qlong is: " + str(qlong))
+                print("Qlong is: " + str(qlong))
             time.sleep(bufferTime) # wait x number of seconds to check for data coming in on pipe
     return
 
