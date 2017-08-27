@@ -615,8 +615,25 @@ class CAEN_Digitizer(Client):
         return filename
 
     def _get_timeindex(self, timesince):
-        POSIXStartTime = self.recordingConfiguration.POSIXStartTime
-        self._get_tagtime()
+        # TODO: Make sure that POSIXStartTime and tagtime are of the same units
+        POSIXStartTime = self.recordingConfiguration.POSIXStartTime  # do i need this??
+        tagtime_list = self._get_tagtime()
+        tagtime_length = len(tagtime_list)
+        if timesince < POSIXStartTime:
+            # you want the entire dataset from the recording.
+            # Which means, you don't need to do an index search.
+            # create an index list which spans all of tagtime
+            timeindex = np.arange(tagtime_length)
+            return timeindex
+        for i in range(tagtime_length):
+            # have to approach from the opposite side. We're going to step backwards in time.
+            index = tagtime_length-1-i  # -1 because indexing starts at 0.
+            if tagtime_list[index] < timesince:
+                # I've found the time, I just need to add one since I've gone slightly too far.
+                index += 1
+                break
+        base_index = np.arange(tagtime_length)
+        timeindex = np.add(base_index, np.repeat(index, len(base_index))
         return timeindex
 
     def _get_posix_time(self):
@@ -635,7 +652,7 @@ class CAEN_Digitizer(Client):
         pass
 
     def _get_tagtime(self):
-        return 
+        return
 
 
 
