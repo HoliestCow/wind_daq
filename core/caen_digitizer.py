@@ -11,6 +11,7 @@ import time
 import numpy as np
 from multiprocessing import Process
 import Exceptions
+from collections import OrderedDict
 
 
 class CAEN_Digitizer(Client):
@@ -37,7 +38,8 @@ class CAEN_Digitizer(Client):
 
         #  Describe the system itself. Currently we have 2 hookups, both NaI cylinders.
         self.systemConfiguration = SYSTEM_CONFIGURATION
-        self.recordingContainer = []
+        self.configurationContainer = OrderedDict()
+        self.dataContainer = OrderedDict()
 
         # intialize system status
         self.status = Status(unitId=self.systemConfiguration.unitId,
@@ -47,7 +49,7 @@ class CAEN_Digitizer(Client):
                              batteryRemainingPercent=self.batteryRemainingPercent,
                              systemTime=self._get_posix_time())
 
-        self.SystemDefinition = SYSTEM_DEFINITION
+        self.systemDefinition = SYSTEM_DEFINITION
 
         # Data stuff
         self.num_bins = 2**15
@@ -69,7 +71,8 @@ class CAEN_Digitizer(Client):
             self.endRecording()
         # self.isRecording = False
         self.isOnline = False
-        self.recordingContainer = []
+        self.dataContainer = OrderedDict()
+        self.configurationContainer = OrderedDict()
         self.isOnline = True
 
     def exit(self):
@@ -79,7 +82,8 @@ class CAEN_Digitizer(Client):
         print('Exiting DAQ software.')
         if self.isRecording is True:
             self.endRecording()
-        self.recordingContainer = []
+        self.dataContainer = OrderedDict()
+        self.configurationContainer = OrderedDict()
         self.isOnline = False
 
     def shutdown(self):
@@ -89,7 +93,8 @@ class CAEN_Digitizer(Client):
         print('Shutting down PTU')
         if self.isRecording is True:
             self.endRecording()
-        self.recordingContainer = []
+        self.configurationContainers = OrderedDict()
+        self.dataContainer = OrderedDict()
         self.isOnline = False
 
     def startRecording(self, campaign, tag, measurementNumber, description,
@@ -122,6 +127,9 @@ class CAEN_Digitizer(Client):
                                            duration)
         POSIXStartTime = self._get_posix_time()
         self.recordingId = recordingId
+        # self.configuration_container[recordingId] = OrderedDict()
+
+        # This is the current configuration
         self.recordingConfiguration = RecordingConfiguration(
             unitId=unitId,
             recordingId=recordingId,
@@ -134,11 +142,22 @@ class CAEN_Digitizer(Client):
             recordingDuration=duration,
             POSIXStartTime=POSIXStartTime,
             measurementNumber=measurementNumber,)
+        # initialize containers
+        self.configuration_container[self.recordingId] = self.recordingConfiguration
+        self.data_container[recordingId] = OrderedDict()
+
         self.stopwatch = 0
-        self.listmode_time = np.zeros((0,))
-        self.listmode_energy = np.zeros((0,))
-        self.histogram_time = np.zeros((0,))
-        self.histogram_energy = np.zeros((0, self.num_bins))
+        # self.timestamp[self.recordingId] = np.zeros((0,))
+        # self.listmode_time[self.recordingId] = np.zeros((0,))
+        # self.listmode_energy[self.recordingId] = np.zeros((0,))
+        # self.histogram_time[self.recordingId] = np.zeros((0,))
+        # self.histogram_energy[self.recordingId] = np.zeros((0, self.num_bins))
+        self.timestamp[self.recordingId] = OrderedDict()  # dictionary for the desired detectors.
+        self.listmode_time[self.recordingId] = OrderedDict()
+        self.listmode_energy[self.recordingId] = OrderedDict()
+        self.histogram_time[self.recordingId] = OrderedDict()
+        self.histogram_energy[self.recordingId] = OrderedDict()
+
         Process(target=self._daq_data_aggregator())
         self.isRecording = True
         return self.recordingConfiguration
@@ -167,7 +186,7 @@ class CAEN_Digitizer(Client):
         """
         systemTime = self._get_posix_time()
         POSIXStartTime = self.recordingConfiguration.POSIXStartTime
-        if duration < (systemTime - POSIXStartTime):
+        if duration < (systemTime - self.recordingConfiguration.POSIXStartTime):
             self.endRecording()
             self.recordingConfiguration.recordingDuration = (systemTime - POSIXStartTime)
         else:
@@ -225,7 +244,7 @@ class CAEN_Digitizer(Client):
         """
         Gets the definition of the system, defining what the system is capable of
         """
-        return self.SystemDefinition
+        return self.systemDefinition
 
     def getSystemConfiguration(self):
         """
@@ -233,7 +252,7 @@ class CAEN_Digitizer(Client):
 
         Returns current system configuration
         """
-        return self.SystemConfiguration
+        return self.systemConfiguration
 
     def setSystemConfiguration(self, systemConfig):
         """
@@ -245,6 +264,7 @@ class CAEN_Digitizer(Client):
          - systemConfig
         """
         self.systemConfiguration = systemConfig
+        self.configuration_container[self.recordingId] = systemConfig
         return self.systemConfiguration
 
     def getLatestData(self, requestedData):
@@ -262,11 +282,11 @@ class CAEN_Digitizer(Client):
 
         # How is requested data defined??? componentIds? unitIds???
 
-        gammaListData = self.listmode_energy[requestedData]
-        gammaSpectrumData = self.histogram_energy[requestedData]
-        gammaGrossCountData = np.sum(self.histogram_energy[requestedData], axis=1)
-        gammaDoseData = np.sum(self.listmode_energy[requestedData])
-        timestamp = self.timestamp[requestedData]
+        gammaListData = self.listmode_energy[self.recordingId][requestedData]
+        gammaSpectrumData = self.histogram_energy[self.recordingId][requestedData]
+        gammaGrossCountData = np.sum(self.histogram_energy[self.recordingId][requestedData], axis=1)
+        gammaDoseData = np.sum(self.listmode_energy[self.recordingId][requestedData])
+        timestamp = self.timestamp[self.recordingId][requestedData]
 
         data = DataPayload(unitId=self.systemConfiguration.componentId,
                            timeStamp=timestamp,  # TODO: Fill this
@@ -298,13 +318,13 @@ class CAEN_Digitizer(Client):
         """
         # Requested Data = detector index
 
-        if recordingId in self.recordingContainer:
+        if recordingId in self.dataContainer:
             timeindex = self._get_timeindex(self, lastTime, -1)
-            gammaListData = self.listmode_energy[requestedData][timeindex]
-            gammaSpectrumData = self.histogram_energy[requestedData][timeindex, :]
-            gammaGrossCountData = np.sum(self.histogram_energy[requestedData][timeindex, :], axis=1)
-            gammaDoseData = np.sum(self.listmode_energy[requestedData][timeindex])
-            timestamp = self.timestamp[requestedData][timeindex]
+            gammaListData = self.dataContainer[recordingId]['listmode_energy'][requestedData][timeindex]
+            gammaSpectrumData = self.dataContainer[recordingId]['spectrum'][requestedData][timeindex, :]
+            gammaGrossCountData = np.sum(self.dataContainer[recordingId]['grosscounts'][requestedData][timeindex, :], axis=1)
+            gammaDoseData = np.sum(self.dataContainer[recordingId]['listmode_energy'][requestedData][timeindex])
+            timestamp = self.dataContainer[recordingId]['timestamp'][requestedData][timeindex]
 
             data = DataPayload(unitId=self.systemConfiguration.componentId,
                                timeStamp=timestamp,  # TODO: Fill this
@@ -345,6 +365,7 @@ class CAEN_Digitizer(Client):
         # if recordingId not in self.recordingContainer:
         #     return Exceptions.RetrievalError
         # desiredindex = self._get_timeindex()
+        print('Not implemented yet')
         pass
         # return
 
@@ -367,13 +388,13 @@ class CAEN_Digitizer(Client):
          - requestedData
         """
 
-        if recordingId in self.recordingContainer:
+        if recordingId in self.dataContainer:
             timeindex = self._get_timeindex(self, startTime, endTime)
-            gammaListData = self.listmode_energy[requestedData][timeindex]
-            gammaSpectrumData = self.histogram_energy[requestedData][timeindex, :]
-            gammaGrossCountData = np.sum(self.histogram_energy[requestedData][timeindex, :], axis=1)
-            gammaDoseData = np.sum(self.listmode_energy[requestedData][timeindex])
-            timestamp = self.timestamp[requestedData][timeindex]
+            gammaListData = self.dataContainer[recordingId]['listmode_energy'][requestedData][timeindex]
+            gammaSpectrumData = self.dataContainer[recordingId]['spectrum'][timeindex, :]
+            gammaGrossCountData = np.sum(self.dataContainer[recordingId]['grosscounts'][requestedData][timeindex, :], axis=1)
+            gammaDoseData = np.sum(self.dataContainer[recordingId]['dose'][requestedData][timeindex])
+            timestamp = self.timestamp[recordingId]['timestamp'][requestedData][timeindex]
 
             data = DataPayload(unitId=self.systemConfiguration.componentId,
                                timeStamp=timestamp,  # TODO: Fill this
@@ -411,13 +432,13 @@ class CAEN_Digitizer(Client):
          - limit
          - requestedData
         """
-        if recordingId in self.recordingContainer:
+        if recordingId in self.dataContainer:
             timeindex = self._get_timeindex(self, startTime, endTime)
-            gammaListData = self.listmode_energy[requestedData][timeindex]
-            gammaSpectrumData = self.histogram_energy[requestedData][timeindex, :]
-            gammaGrossCountData = np.sum(self.histogram_energy[requestedData][timeindex, :], axis=1)
-            gammaDoseData = np.sum(self.listmode_energy[requestedData][timeindex])
-            timestamp = self.timestamp[requestedData][timeindex]
+            gammaListData = self.dataContainer[recordingId]['listmode_energy'][requestedData][timeindex]
+            gammaSpectrumData = self.dataContainer[recordingId]['spectrum'][requestedData][timeindex, :]
+            gammaGrossCountData = np.sum(self.dataContainer[recordingId]['grosscounts'][requestedData][timeindex, :], axis=1)
+            gammaDoseData = np.sum(self.dataContainer[recordingId]['dose'][requestedData][timeindex])
+            timestamp = self.timestamp[recordingId]['timestamp'][requestedData][timeindex]
 
             data = DataPayload(unitId=self.systemConfiguration.componentId,
                                timeStamp=timestamp,  # TODO: Fill this
@@ -443,6 +464,7 @@ class CAEN_Digitizer(Client):
         Parameters:
          - fileName: The name of the file to pull - PTU is responsible for knowing where this file is located
         """
+        print('Not implemented yet')
         pass
 
     def sendCommand(self, componentId, command):
