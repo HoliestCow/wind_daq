@@ -1,9 +1,9 @@
 
-from wind_daq.thrift.pyout.PTUServices import Client
-from wind_daq.thrift.pyout.PTUPayload import (RecordingConfiguration,
+from wind_daq.thrift.PTUServices import Client
+from wind_daq.thrift.PTUPayload import (RecordingConfiguration,
                                               DataPayload,
                                               Status)
-from wind_daq.thrift.pyout.Health import Health
+from wind_daq.thrift.Health import Health
 from .configuration import (SYSTEM_CONFIGURATION,
                             SYSTEM_DEFINITION)
 import thrift_uuid
@@ -20,14 +20,14 @@ class CAEN_Digitizer(Client):
         # Create method to initialize the detectors present on the CAEN machine.
         # This will populate self.system_configuration, or some sort of dictionary.
         file_list = [
-            'file1',
-            'file2',
+            '/home/callie/Documents/CAEN_Data/plugFestTest_014_ls_0.dat',
+            '/home/callie/Documents/CAEN_Data/plugFestTest_014_ls_1.dat'
         ]
         self._set_daq_files(file_list)
 
         self.isRecording = False
         self.isOnline = True
-        self.name = "CAEN Digitizer"
+        self.name = "CAEN_Digitizer"
         # HACK: Faking constant hard drive and battery stuff
         self.hardDriveUsedPercent = 25.0
         self.batteryRemainingPercent = 25.0
@@ -144,7 +144,13 @@ class CAEN_Digitizer(Client):
             measurementNumber=measurementNumber,)
         # initialize containers
         self.configuration_container[self.recordingId] = self.recordingConfiguration
-        self.data_container[recordingId] = OrderedDict()
+        self.dataContainer[recordingId] = OrderedDict()
+        for item in self.detectors:
+            self.dataContainer[recordingId][item]
+            self.dataContainer[recordingId][item]['listmode_energy'] = np.zeros((0,))
+            self.dataContainer[recordingId][item]['spectrum'] = np.zeros((0, self.num_bins))
+            self.dataContainer[recordingId][item]['grosscounts'] = np.zeros((0,))
+            self.dataContainer[recordingId][item]['dose'] = np.zeros((0,))
 
         self.stopwatch = 0
         # self.timestamp[self.recordingId] = np.zeros((0,))
@@ -152,11 +158,11 @@ class CAEN_Digitizer(Client):
         # self.listmode_energy[self.recordingId] = np.zeros((0,))
         # self.histogram_time[self.recordingId] = np.zeros((0,))
         # self.histogram_energy[self.recordingId] = np.zeros((0, self.num_bins))
-        self.timestamp[self.recordingId] = OrderedDict()  # dictionary for the desired detectors.
-        self.listmode_time[self.recordingId] = OrderedDict()
-        self.listmode_energy[self.recordingId] = OrderedDict()
-        self.histogram_time[self.recordingId] = OrderedDict()
-        self.histogram_energy[self.recordingId] = OrderedDict()
+        # self.timestamp[self.recordingId] = OrderedDict()  # dictionary for the desired detectors.
+        # self.listmode_time[self.recordingId] = OrderedDict()
+        # self.listmode_energy[self.recordingId] = OrderedDict()
+        # self.histogram_time[self.recordingId] = OrderedDict()
+        # self.histogram_energy[self.recordingId] = OrderedDict()
 
         Process(target=self._daq_data_aggregator())
         self.isRecording = True
@@ -264,7 +270,7 @@ class CAEN_Digitizer(Client):
          - systemConfig
         """
         self.systemConfiguration = systemConfig
-        self.configuration_container[self.recordingId] = systemConfig
+        self.configurationContainer[self.recordingId] = systemConfig
         return self.systemConfiguration
 
     def getLatestData(self, requestedData):
@@ -282,11 +288,11 @@ class CAEN_Digitizer(Client):
 
         # How is requested data defined??? componentIds? unitIds???
 
-        gammaListData = self.listmode_energy[self.recordingId][requestedData]
-        gammaSpectrumData = self.histogram_energy[self.recordingId][requestedData]
-        gammaGrossCountData = np.sum(self.histogram_energy[self.recordingId][requestedData], axis=1)
-        gammaDoseData = np.sum(self.listmode_energy[self.recordingId][requestedData])
-        timestamp = self.timestamp[self.recordingId][requestedData]
+        gammaListData = self.dataContainer[self.recordingId][requestedData]['listmode_energy']
+        gammaSpectrumData = self.dataContainer[self.recordingId][requestedData]['spectrum']
+        gammaGrossCountData = self.dataContainer[self.recordingId][requestedData]['grosscounts']
+        gammaDoseData = self.dataContainer[self.recordingId][requestedData]['spectrum']
+        timestamp = self.dataContainer[self.recordingId][requestedData]['timestamp']
 
         data = DataPayload(unitId=self.systemConfiguration.componentId,
                            timeStamp=timestamp,  # TODO: Fill this
@@ -320,11 +326,11 @@ class CAEN_Digitizer(Client):
 
         if recordingId in self.dataContainer:
             timeindex = self._get_timeindex(self, lastTime, -1)
-            gammaListData = self.dataContainer[recordingId]['listmode_energy'][requestedData][timeindex]
-            gammaSpectrumData = self.dataContainer[recordingId]['spectrum'][requestedData][timeindex, :]
-            gammaGrossCountData = np.sum(self.dataContainer[recordingId]['grosscounts'][requestedData][timeindex, :], axis=1)
-            gammaDoseData = np.sum(self.dataContainer[recordingId]['listmode_energy'][requestedData][timeindex])
-            timestamp = self.dataContainer[recordingId]['timestamp'][requestedData][timeindex]
+            gammaListData = self.dataContainer[recordingId][requestedData]['listmode_energy'][timeindex]
+            gammaSpectrumData = self.dataContainer[recordingId][requestedData]['spectrum'][timeindex, :]
+            gammaGrossCountData = self.dataContainer[recordingId][requestedData]['grosscounts'][timeindex, :]
+            gammaDoseData = self.dataContainer[recordingId][requestedData]['listmode_energy'][timeindex]
+            timestamp = self.dataContainer[recordingId][requestedData]['timestamp'][timeindex]
 
             data = DataPayload(unitId=self.systemConfiguration.componentId,
                                timeStamp=timestamp,  # TODO: Fill this
@@ -390,11 +396,11 @@ class CAEN_Digitizer(Client):
 
         if recordingId in self.dataContainer:
             timeindex = self._get_timeindex(self, startTime, endTime)
-            gammaListData = self.dataContainer[recordingId]['listmode_energy'][requestedData][timeindex]
+            gammaListData = self.dataContainer[recordingId][requestedData]['listmode_energy'][timeindex]
             gammaSpectrumData = self.dataContainer[recordingId]['spectrum'][timeindex, :]
-            gammaGrossCountData = np.sum(self.dataContainer[recordingId]['grosscounts'][requestedData][timeindex, :], axis=1)
-            gammaDoseData = np.sum(self.dataContainer[recordingId]['dose'][requestedData][timeindex])
-            timestamp = self.timestamp[recordingId]['timestamp'][requestedData][timeindex]
+            gammaGrossCountData = self.dataContainer[recordingId][requestedData]['grosscounts'][timeindex, :]
+            gammaDoseData = self.dataContainer[recordingId][requestedData]['dose'][timeindex]
+            timestamp = self.timestamp[recordingId][requestedData]['timestamp'][timeindex]
 
             data = DataPayload(unitId=self.systemConfiguration.componentId,
                                timeStamp=timestamp,  # TODO: Fill this
@@ -434,11 +440,11 @@ class CAEN_Digitizer(Client):
         """
         if recordingId in self.dataContainer:
             timeindex = self._get_timeindex(self, startTime, endTime)
-            gammaListData = self.dataContainer[recordingId]['listmode_energy'][requestedData][timeindex]
-            gammaSpectrumData = self.dataContainer[recordingId]['spectrum'][requestedData][timeindex, :]
-            gammaGrossCountData = np.sum(self.dataContainer[recordingId]['grosscounts'][requestedData][timeindex, :], axis=1)
-            gammaDoseData = np.sum(self.dataContainer[recordingId]['dose'][requestedData][timeindex])
-            timestamp = self.timestamp[recordingId]['timestamp'][requestedData][timeindex]
+            gammaListData = self.dataContainer[recordingId][requestedData]['listmode_energy'][timeindex]
+            gammaSpectrumData = self.dataContainer[recordingId][requestedData]['spectrum'][timeindex, :]
+            gammaGrossCountData = self.dataContainer[recordingId][requestedData]['grosscounts'][timeindex, :]
+            gammaDoseData = self.dataContainer[recordingId][requestedData]['dose'][timeindex]
+            timestamp = self.dataContainer[recordingId][requestedData]['timestamp'][timeindex]
 
             data = DataPayload(unitId=self.systemConfiguration.componentId,
                                timeStamp=timestamp,  # TODO: Fill this
@@ -786,10 +792,31 @@ class CAEN_Digitizer(Client):
         while self.isRecording:
             [listmode_time, listmode_energy, histenergy] = self._daq_micro_measurement()
             self.stopwatch += 100
-            self.timestamp = np.vstack((self.timestamp, self.stopwatch))
-            self.listmode_time = np.vstack((self.listmode_time, listmode_time))
-            self.listmode_energy = np.vstack((self.listmode_energy, listmode_energy))
-            self.histogram_energy = np.vstack((self.histogram_energy, histenergy))
+            for item in self.dataContainer[self.recordingId]:
+                one = self.dataContainer[self.recordingId][item]['timestamp']
+                two = self.dataContainer[self.recordingId][item]['listmode_time']
+                three = self.dataContainer[self.recordingId][item]['listmode_energy']
+                four = self.dataContainer[self.recordingId][item]['spectrum']
+                five = self.dataContainer[self.recordingId][item]['grosscounts']
+                six = self.dataContainer[self.recordingId][item]['dose']
+                one = np.vstack((one, self.stopwatch))
+                two = np.vstack((two, listmode_time))
+                three = np.vstack((three, listmode_energy))
+                four = np.vstack((four, histenergy))
+                five = np.vstack((five, np.sum(histenergy, axis=1)))
+                six = np.vstack((six, np.sum(histenergy)))
+                self.dataContainer[self.recordingId][item]['timestamp'] = one
+                self.dataContainer[self.recordingId][item]['listmode_time'] = two
+                self.dataContainer[self.recordingId][item]['listmode_energy'] = three
+                self.dataContainer[self.recordingId][item]['spectrum'] = four
+                self.dataContainer[self.recordingId][item]['grosscounts'] = five
+                self.dataContainer[self.recordingId][item]['dose'] = six
+            # self.timestamp = np.vstack((self.timestamp, self.stopwatch))
+            # self.listmode_time = np.vstack((self.listmode_time, listmode_time))
+            # self.listmode_energy = np.vstack((self.listmode_energy, listmode_energy))
+            # self.histogram_energy = np.vstack((self.histogram_energy, histenergy))
+            for item in
+            self.timestamp[self.recordingId]
 
     def _daq_micro_measurement(self):
         triggerTimeTag = []
@@ -832,15 +859,3 @@ class CAEN_Digitizer(Client):
         histEnergyDeposited = histEnergyDeposited
 
         return listmode_triggerTimeTag, listmode_energyDeposited, histEnergyDeposited
-
-
-
-
-
-
-
-
-
-
-
-

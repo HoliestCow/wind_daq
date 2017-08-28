@@ -1,20 +1,23 @@
 
-from wind_daq.thrift.pyout.PTUPayload.ttypes import (SystemConfiguration,
+from .PTUPayload import (SystemConfiguration,
                                                      SystemDefinition,
                                                      SIPMSettings,
                                                      SIPM_PMTSettings,
                                                      GammaListAndSpectrumDefinition)
-from wind_daq.thrift.pyout.GammaSensor import (GammaListAndSpectrumConfiguration,
+from GammaSensor import (GammaListAndSpectrumConfiguration,
                                                GammaGrossCountConfiguration,
                                                GammaDoseConfiguration,
                                                GammaGrossCountDefinition,
                                                GammaDoseDefinition)
-from wind_daq.thrift.pyout.DetectorCharacteristics import (EnergyCalibration,
+from DetectorCharacteristics import (EnergyCalibration,
                                                            RectangularDimensions,
                                                            Dimensions)
-from wind_daq.thrift.pyout.ComponentLocation import GridPositionAndOrientation
+from ComponentLocation import GridPositionAndOrientation
 import thrift_uuid
 import numpy as np
+
+# Serve to this port
+THRIFT_PORT = 9090
 
 # DEFINE UUID
 channel0_uuid = thrift_uuid.generate_thrift_uuid_with_name('NaIBar_1')
@@ -27,8 +30,8 @@ channel1_uuid = thrift_uuid.generate_thrift_uuid_with_name('NaIBar_2')
 # channel_0_energycalibration = EnergyCalibration(channel=2**15, energy=4.3)
 # assume linear energy calibration, 15 bit adc, 4.3 MeV max
 # assume that the energy calibration is the same across all detectors
-max_energy = 4.3 * 1000  # assuming it's in keV
-delta_energy = 4.3 * 1000 / 2**15  # assuming it's in keV
+max_energy = 3 * 1000  # assuming it's in keV
+delta_energy = 3 * 1000 / 2**15  # assuming it's in keV
 channel_index = np.arange(0, 2**15)
 channel_index2energy = np.linspace(delta_energy, max_energy, delta_energy)
 energyCalibration = []
@@ -245,26 +248,3 @@ SYSTEM_DEFINITION = SystemDefinition(
     gammaListDefinitions=system_gamma_list_definintions,
     gammaGrossCountDefinitions=system_gamma_grosscount_definitions,
     gammaDoseDefinitions=system_gamma_dose_definitions)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
