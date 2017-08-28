@@ -8,7 +8,8 @@ from .configuration import (SYSTEM_CONFIGURATION,
                             SYSTEM_DEFINITION)
 import thrift_uuid
 import time
-# import numpy as np
+import numpy as np
+import os
 
 
 class CAEN_Digitizer(Client):
@@ -27,7 +28,7 @@ class CAEN_Digitizer(Client):
         self.health = Health('Nominal')
 
 
-        # Describe the system itself. Currently we have 2 hookups, both NaI cylinders.
+        #  Describe the system itself. Currently we have 2 hookups, both NaI cylinders.
         self.systemConfiguration = SYSTEM_CONFIGURATION
         self.recordingContainer = {}
 
@@ -40,6 +41,9 @@ class CAEN_Digitizer(Client):
                              systemTime=self._get_posix_time())
 
         self.SystemDefinition = SYSTEM_DEFINITION
+
+        # Data stuff
+        self.num_bins = 2**15
 
     def ping(self):
         """
@@ -633,7 +637,7 @@ class CAEN_Digitizer(Client):
                 index += 1
                 break
         base_index = np.arange(tagtime_length)
-        timeindex = np.add(base_index, np.repeat(index, len(base_index))
+        timeindex = np.add(base_index, np.repeat(index, (len(base_index),)))
         return timeindex
 
     def _get_posix_time(self):
@@ -653,6 +657,96 @@ class CAEN_Digitizer(Client):
 
     def _get_tagtime(self):
         return
+
+    def follow(self, thefile):
+        # From https://stackoverflow.com/questions/3290292/read-from-a-log-file-as-its-being-written-using-python
+        thefile.seek(0, 2)  # Go to the end of the file
+        #  yield None # Sleep briefly
+        time.sleep(0.01)
+        # Catching time.
+        line = thefile.readline()
+        # continue
+        yield line
+
+    def _set_daq_files(self, file_list):
+        self.filehandles = []
+        self.daq_generators = []
+        for x in file_list:
+            filehandle = open(x, 'r')
+            self.filehandles += [filehandle]
+            self.daq_generators += [self.follow(filehandle)]
+        return
+
+    def _unset_daq_files(self):
+        for handle in self._filehandles:
+            handle.close()
+        self._filehandles = []
+        self.daq_generators = []
+        return
+
+    def _collect_daq_data(self):
+        # I don't think I can measure and return data simultaneously without threading
+        #       and messing with semaphores or race conditions.
+
+        # Artificially enforce an integration time. In the while, loop into a status checker, kind of like firmware in an MCU.
+
+        # Enforce that we only collect 100 ms worth of data at a time.
+
+        collectionStartTime = self._get_posix_time()
+
+        triggerTimeTag = []
+        energyDeposited = []
+
+        # calibration factors, assuming linear calibration y=mx+b for now
+        m = 0.2
+        b = 0
+        # Amount of time in seconds want to wait before checking pipe for more data
+        # bufferTime = 0.1  # 100 ms
+        i = 0  # channel to read.
+        # while is for round robin implementation.
+        while self.isRecording and (self._get_posix_time()-collectionStartTime < 100):
+            generator = self.daq_generators[i]
+            for line in generator:
+                if line:
+                    line = line.strip()
+                    words = line.split()  # split line into space delimited words
+                    #trigger time is in clock clicks 4ns/tick, seems to start as some insanely large number so subtracting out as initial time
+
+                    #build 1D arrays with list mode data
+                    # also putting trigger time in seconds instead of clock ticks and calibrating
+                    # tagtime = float(words[0])  # to seconds
+
+                    # I don't think I care about trigger time.
+                    time = float(words[0]) / 4E9 * 1000.0
+                    triggerTimeTag.append(time-self.POSIXStartTime)  # trigger time in ns (4ns/clock tick)
+                    energyDeposited.append((float(words[1])*m) + b)  # total integrated energy of event in rough keV
+
+                    #uncomment for debugging
+                    #print("Qlong is: " + str(qlong))
+            self.daq_generators[i] = self.follow(self.filehandles[i])
+            i += 1
+            if i == len(self.daq_generators):
+                # round robin implementation
+                i = 0
+
+        # Which means the recording stopped for reading or for some other reason.
+        listmode_triggerTimeTag = np.array(triggerTimeTag)
+        listmode_energyDeposited = np.array(energyDeposited)
+        #build a histogram that can be called later
+        histEnergyDeposited, bin_edges = np.histogram(energyDeposited, bins=range(self.num_bins))
+        histEnergyDeposited = histEnergyDeposited
+
+        ###### OVER KILL BOIS ######
+        # make max time want to plot in 100's of ms for proper binning
+        # maxTime = int(math.ceil(triggerTimeTag[len(triggerTimeTag)-1])/100000)
+        # print(maxTime) #uncomment for debugging
+
+        # This is unnecessary for now. This is for poking around in higher fidelity.
+        # build 2D histogram with energy, time, counts (x,y,z)
+        # make 2D histogram, bin (with xedges and yedges) to 100ms/division for time
+        # histTime, xedges, yedges = np.histogram2d(qlong,triggerTimeTag, bins = [num_bins, maxTime])
+        ###### OVER KILL BOIS ######
+        return listmode_triggerTimeTag, listmode_energyDeposited, histEnergyDeposited
 
 
 
