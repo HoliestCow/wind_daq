@@ -8,7 +8,7 @@
 
 
 #set filename want here
-inputFile="inputFile"
+inputFile="inputFile.txt"
 
 #get rid of old one in case it already exists
 rm $inputFile
@@ -36,5 +36,5 @@ echo $count" "$count" "$count" "$count >> $inputFile
 count=`expr $count + 1`
 
 #wait one second
-sleep 1
+sleep 0.1
 done
