@@ -1,17 +1,17 @@
-# from wind_daq.core.configuration
-import wind_daq.core.configuration
-import thrift
+
+# import configuration
+from thrift import (transport, protocol)
 #from wind_daq.core.caen_digitizer import CAEN_Digitizer
 #from caen_digitizer import CAEN_Digitizer
-from PTUServices import PTU
-from wind_daq.core.caen_digitzer import CAEN_Digitizer
+from pyout.PTUServices import PTU
+from caen_digitzer import CAEN_Digitizer
 
-blah = CAEN_Digitizer
 def start_thrift_server():
+    THRIFT_PORT = 9090
     processor = PTU.Processor(CAEN_Digitizer)
-    transport = thrift.transport.TSocket.TServerSocket(port=THRIFT_PORT)
-    tfactory = thrift.transport.TTransport.TBufferedTransportFactory()
-    pfactory = thrift.protocol.TBinaryProtocol.TBinaryProtocolAcceleratedFactory()
+    transport = transport.TSocket.TServerSocket(port=THRIFT_PORT)
+    tfactory = transport.TTransport.TBufferedTransportFactory()
+    pfactory = protocol.TBinaryProtocol.TBinaryProtocolAcceleratedFactory()
 
     server = thrift.server.TServer.TThreadedServer(processor, transport, tfactory, pfactory)
 

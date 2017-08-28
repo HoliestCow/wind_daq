@@ -11,14 +11,14 @@ from thrift.protocol.TProtocol import TProtocolException
 from thrift.TRecursive import fix_spec
 
 import sys
-import PTUPayload.ttypes
-import Exceptions.ttypes
-import Navigation.ttypes
-import WINDMessage.ttypes
-import Command.ttypes
-import Marker.ttypes
-import AlgorithmPayload.ttypes
-import UUID.ttypes
+from ..PTUPayload.ttypes import *
+from ..Exceptions.ttypes import *
+from ..Navigation.ttypes import *
+from ..WINDMessage.ttypes import *
+from ..Command.ttypes import *
+from ..Marker.ttypes import *
+from ..AlgorithmPayload.ttypes import *
+from ..UUID.ttypes import *
 
 from thrift.transport import TTransport
 all_structs = []

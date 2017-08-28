@@ -1,10 +1,10 @@
 
-from wind_daq.thrift.PTUServices import Client
-from wind_daq.thrift.PTUPayload import (RecordingConfiguration,
+from .thrift.PTUServices import Client
+from .thrift.PTUPayload import (RecordingConfiguration,
                                               DataPayload,
                                               Status)
-from wind_daq.thrift.Health import Health
-from .configuration import (SYSTEM_CONFIGURATION,
+from .thrift.Health import Health
+from configuration import (SYSTEM_CONFIGURATION,
                             SYSTEM_DEFINITION)
 import thrift_uuid
 import time
