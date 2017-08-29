@@ -1,9 +1,9 @@
 
-from .thrift.PTUServices import Client
-from .thrift.PTUPayload import (RecordingConfiguration,
-                                              DataPayload,
-                                              Status)
-from .thrift.Health import Health
+from PTUServices.PTU import Client
+from PTUPayload import (RecordingConfiguration,
+                        DataPayload,
+                        Status)
+import Health
 from configuration import (SYSTEM_CONFIGURATION,
                             SYSTEM_DEFINITION)
 import thrift_uuid
@@ -815,7 +815,7 @@ class CAEN_Digitizer(Client):
             # self.listmode_time = np.vstack((self.listmode_time, listmode_time))
             # self.listmode_energy = np.vstack((self.listmode_energy, listmode_energy))
             # self.histogram_energy = np.vstack((self.histogram_energy, histenergy))
-            for item in
+            # for item in
             self.timestamp[self.recordingId]
 
     def _daq_micro_measurement(self):

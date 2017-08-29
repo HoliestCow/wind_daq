@@ -1,27 +1,27 @@
 
-from .PTUPayload import (SystemConfiguration,
-                                                     SystemDefinition,
-                                                     SIPMSettings,
-                                                     SIPM_PMTSettings,
-                                                     GammaListAndSpectrumDefinition)
+from PTUPayload import (SystemConfiguration,
+                        SystemDefinition)
 from GammaSensor import (GammaListAndSpectrumConfiguration,
-                                               GammaGrossCountConfiguration,
-                                               GammaDoseConfiguration,
-                                               GammaGrossCountDefinition,
-                                               GammaDoseDefinition)
+                         GammaListAndSpectrumDefinition,
+                         GammaGrossCountConfiguration,
+                         GammaDoseConfiguration,
+                         GammaGrossCountDefinition,
+                         GammaDoseDefinition,
+                         SIPM_PMTSettings,
+                         SIPMSettings)
 from DetectorCharacteristics import (EnergyCalibration,
-                                                           RectangularDimensions,
-                                                           Dimensions)
+                                     RectangularDimensions,
+                                     Dimensions)
 from ComponentLocation import GridPositionAndOrientation
-import thrift_uuid
+from thrift_uuid import Thrift_UUID
 import numpy as np
 
 # Serve to this port
 THRIFT_PORT = 9090
 
 # DEFINE UUID
-channel0_uuid = thrift_uuid.generate_thrift_uuid_with_name('NaIBar_1')
-channel1_uuid = thrift_uuid.generate_thrift_uuid_with_name('NaIBar_2')
+channel0_uuid = Thrift_UUID.generate_thrift_uuid_with_name('NaIBar_1')
+channel1_uuid = Thrift_UUID.generate_thrift_uuid_with_name('NaIBar_2')
 
 ###########################################################
 # ENERGY CALIBRATION. CONSTANT FOR ALL DETECTORS FOR NOW ##
@@ -30,10 +30,11 @@ channel1_uuid = thrift_uuid.generate_thrift_uuid_with_name('NaIBar_2')
 # channel_0_energycalibration = EnergyCalibration(channel=2**15, energy=4.3)
 # assume linear energy calibration, 15 bit adc, 4.3 MeV max
 # assume that the energy calibration is the same across all detectors
+num_bins = 2**15
 max_energy = 3 * 1000  # assuming it's in keV
-delta_energy = 3 * 1000 / 2**15  # assuming it's in keV
-channel_index = np.arange(0, 2**15)
-channel_index2energy = np.linspace(delta_energy, max_energy, delta_energy)
+delta_energy = 3 * 1000 / num_bins  # assuming it's in keV
+channel_index = np.arange(0, num_bins)
+channel_index2energy = np.linspace(delta_energy, max_energy, num=num_bins)
 energyCalibration = []
 for i in range(0, len(channel_index)):
     energyCalibration += [EnergyCalibration(channel=channel_index[i],
@@ -47,7 +48,7 @@ for i in range(0, len(channel_index)):
 ##########################################
 # NaIBar_1 ###############################
 ##########################################
-channel_0_gamma_sipm = SIPMSettings(highvoltage=9.)
+channel_0_gamma_sipm = SIPMSettings(highVoltage=9.)
 channel_0_settings = SIPM_PMTSettings(sipmSettings=channel_0_gamma_sipm, pmtSettings=None)
 
 channel_0_location = GridPositionAndOrientation(
@@ -80,7 +81,7 @@ channel_0_gamma_dose_config = GammaDoseConfiguration(
 ##########################################
 # NaIBar_2 ###############################
 ##########################################
-channel_1_gamma_sipm = SIPMSettings(highvoltage=9.)
+channel_1_gamma_sipm = SIPMSettings(highVoltage=9.)
 channel_1_settings = SIPM_PMTSettings(sipmSettings=channel_1_gamma_sipm, pmtSettings=None)
 
 channel_1_location = GridPositionAndOrientation(
@@ -123,7 +124,7 @@ gammaListConfigs = [channel_0_gamma_list_config, channel_1_gamma_list_config]
 gammaGrossConfigs = [channel_0_gamma_grosscount_config, channel_1_gamma_grosscount_config]
 gammaDoseConfigs = [channel_0_gamma_dose_config, channel_1_gamma_dose_config]
 
-system_uuid = thrift_uuid.generate_thrift_uuid_with_name('UTKWIND_Array')
+system_uuid = Thrift_UUID.generate_thrift_uuid_with_name('UTKWIND_Array')
 
 GAMMASPECTRUM_CONFIGURATION = gammaSpecConfigs
 GAMMALIST_CONFIGURATION = gammaListConfigs
