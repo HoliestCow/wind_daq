@@ -11,12 +11,12 @@ from thrift.protocol.TProtocol import TProtocolException
 from thrift.TRecursive import fix_spec
 
 import sys
-import Health.ttypes
-import DetectorCharacteristics.ttypes
-import Angular.ttypes
-import Spectrum.ttypes
-import ComponentLocation.ttypes
-import UUID.ttypes
+from ..Health.ttypes import *
+from ..DetectorCharacteristics.ttypes import *
+from ..Angular.ttypes import *
+from ..Spectrum.ttypes import *
+from ..ComponentLocation.ttypes import *
+from ..UUID.ttypes import *
 
 from thrift.transport import TTransport
 all_structs = []

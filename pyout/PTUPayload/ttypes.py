@@ -11,17 +11,17 @@ from thrift.protocol.TProtocol import TProtocolException
 from thrift.TRecursive import fix_spec
 
 import sys
-import GammaSensor.ttypes
-import NeutronSensor.ttypes
-import AlgorithmPayload.ttypes
-import NavigationSensor.ttypes
-import ContextSensor.ttypes
-import EnvironmentalSensor.ttypes
-import WINDMessage.ttypes
-import Navigation.ttypes
-import Health.ttypes
-import Marker.ttypes
-import UUID.ttypes
+from ..GammaSensor.ttypes import *
+from ..NeutronSensor.ttypes import *
+from ..AlgorithmPayload.ttypes import *
+from ..NavigationSensor.ttypes import *
+from ..ContextSensor.ttypes import *
+from ..EnvironmentalSensor.ttypes import *
+from ..WINDMessage.ttypes import *
+from ..Navigation.ttypes import *
+from ..Health.ttypes import *
+from ..Marker.ttypes import *
+from ..UUID.ttypes import *
 
 from thrift.transport import TTransport
 all_structs = []
