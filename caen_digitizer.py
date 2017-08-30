@@ -3,7 +3,7 @@ from PTUServices.PTU import Client
 from PTUPayload import (RecordingConfiguration,
                         DataPayload,
                         Status)
-import Health
+from Health import *
 from configuration import (SYSTEM_CONFIGURATION,
                             SYSTEM_DEFINITION)
 import thrift_uuid
@@ -33,8 +33,8 @@ class CAEN_Digitizer(Client):
         self.batteryRemainingPercent = 25.0
 
         # HACK: Health is fixed
-        self.health = Health('Nominal')
-
+        self.health = Health()
+        self.health = "Nominal"
 
         #  Describe the system itself. Currently we have 2 hookups, both NaI cylinders.
         self.systemConfiguration = SYSTEM_CONFIGURATION

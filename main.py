@@ -11,9 +11,10 @@ from PTUServices import PTU
 from caen_digitizer import CAEN_Digitizer
 
 
-def start_thrift_server():
-    THRIFT_PORT = 9090
-    processor = PTU.Processor(CAEN_Digitizer)
+def start_thrift_server(PTU_device):
+    THRIFT_PORT = 8080
+
+    processor = PTU.Processor(PTU_device)
     # transport_socket = transport.TSocket.TServerSocket(port=THRIFT_PORT)
     transport_socket = TSocket.TServerSocket(port=THRIFT_PORT)
     tfactory = TTransport.TBufferedTransportFactory()
@@ -27,11 +28,17 @@ def start_thrift_server():
     thrift_thread = threading.Thread(target=server_thread.serve, name="Thrift Loop")
     thrift_thread.daemon = True
     thrift_thread.start()
+
+    # daq_thread = threading.Thread(target=PTU_device._daq_data_aggregator, name="Private DAQ Loop")
+    # daq_thread.daemon = True
+    # thrift_thread.start()
+
     return
 
 
 def main():
-    start_thrift_server()
+    UTK_PTU = CAEN_Digitizer()
+    start_thrift_server(UTK_PTU)
     while True:
         pass
     return
