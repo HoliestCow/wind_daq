@@ -1,6 +1,6 @@
 
 import sys
-sys.path.append('/home/holiestcow/Documents/winds/thrift/wind_daq/thrift/gen-py')
+sys.path.append('/home/callie/Documents/wind_daq/thrift/gen-py')
 print(sys.path)
 # import configuration
 # from thrift import (transport, protocol, server)
