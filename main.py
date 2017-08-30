@@ -1,6 +1,6 @@
 
 import sys
-sys.path.append('/home/callie/Documents/wind_daq/thrift/gen-py')
+sys.path.append('/home/holiestcow/Documents/winds/thrift/wind_daq/thrift/gen-py')
 print(sys.path)
 # import configuration
 # from thrift import (transport, protocol, server)
@@ -24,7 +24,17 @@ def start_thrift_server(PTU_device):
     # server_thread = server.TServer.TThreadedServer(processor, transport, tfactory, pfactory)
     server_thread = TServer.TThreadedServer(processor, transport_socket, tfactory, pfactory)
 
+    file_list = [
+        '/home/holiestcow/Documents/winds/thrift/wind_daq/channel0.txt',
+        '/home/holiestcow/Documents/winds/thrift/wind_daq/channel1.txt'
+    ]
+    PTU_device._set_daq_files(file_list)
+
     import threading
+    # daq_thread = threading.Thread(target=PTU_device._daq_data_aggregator(), name="daq loop")
+    # daq_thread.daemon = True
+    # daq_thread.start()
+
     thrift_thread = threading.Thread(target=server_thread.serve, name="Thrift Loop")
     thrift_thread.daemon = True
     thrift_thread.start()
@@ -40,7 +50,7 @@ def main():
     UTK_PTU = CAEN_Digitizer()
     start_thrift_server(UTK_PTU)
     while True:
-        pass
+        UTK_PTU._daq_data_aggregator()
     return
 
 main()

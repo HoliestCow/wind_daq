@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #  spoofDigitizerData.bash
-#  
+#
 #
 #  Created by Callie Goetz on 8/23/17.
 #
@@ -22,7 +22,7 @@ echo "HEADER4:771" >> $inputFile
 echo "HEADER5:33540" >> $inputFile
 
 #set count = 0
-count=0
+count=100
 
 #writes one line a second until stopped
 while true
@@ -32,9 +32,9 @@ do
 #increment count so easy to keep track of lines being added
 echo $count" "$count" "$count" "$count >> $inputFile
 
-#iterate count
-count=`expr $count + 1`
+#iterate count # Not necesssary. I turned this off.
+# count=`expr $count + 1`
 
 #wait one second
-sleep 0.5
+sleep 0.01
 done

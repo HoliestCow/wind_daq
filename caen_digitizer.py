@@ -19,11 +19,7 @@ class CAEN_Digitizer(Client):
     def __init__(self):
         # Create method to initialize the detectors present on the CAEN machine.
         # This will populate self.system_configuration, or some sort of dictionary.
-        file_list = [
-            '/home/callie/Documents/CAEN_Data/plugFestTest_014_ls_0.dat',
-            '/home/callie/Documents/CAEN_Data/plugFestTest_014_ls_1.dat'
-        ]
-        self._set_daq_files(file_list)
+
 
         self.isRecording = False
         self.isOnline = True
@@ -53,6 +49,10 @@ class CAEN_Digitizer(Client):
 
         # Data stuff
         self.num_bins = 2**15
+
+        self.detectors = ['channel0', 'channel1']
+
+        self.stopwatch = 0
 
     def ping(self):
         """
@@ -164,7 +164,7 @@ class CAEN_Digitizer(Client):
         # self.histogram_time[self.recordingId] = OrderedDict()
         # self.histogram_energy[self.recordingId] = OrderedDict()
 
-        Process(target=self._daq_data_aggregator())
+
         self.isRecording = True
         return self.recordingConfiguration
 
@@ -287,13 +287,18 @@ class CAEN_Digitizer(Client):
         # Requested Data = detector index
 
         # How is requested data defined??? componentIds? unitIds???
-
-        gammaListData = self.dataContainer[self.recordingId][requestedData]['listmode_energy']
-        gammaSpectrumData = self.dataContainer[self.recordingId][requestedData]['spectrum']
-        gammaGrossCountData = self.dataContainer[self.recordingId][requestedData]['grosscounts']
-        gammaDoseData = self.dataContainer[self.recordingId][requestedData]['spectrum']
-        timestamp = self.dataContainer[self.recordingId][requestedData]['timestamp']
-
+        if self.isRecording:
+            gammaListData = self.dataContainer[self.recordingId][requestedData]['listmode_energy']
+            gammaSpectrumData = self.dataContainer[self.recordingId][requestedData]['spectrum']
+            gammaGrossCountData = self.dataContainer[self.recordingId][requestedData]['grosscounts']
+            gammaDoseData = self.dataContainer[self.recordingId][requestedData]['dose']
+            timestamp = self.dataContainer[self.recordingId][requestedData]['timestamp']
+        else:
+            gammaListData = self.current_listmode_energy[requestedData]
+            gammaSpectrumData = self.current_spectrum[requestedData]
+            gammaGrossCountData = self.current_grosscounts[requestedData]
+            gammaDoseData = self.current_dose[requestedData]
+            timestamp = self.current_timestamp[requestedData]
         data = DataPayload(unitId=self.systemConfiguration.componentId,
                            timeStamp=timestamp,  # TODO: Fill this
                            systemHealth=self.health,
@@ -304,6 +309,8 @@ class CAEN_Digitizer(Client):
                            gammaListData=gammaListData,
                            gammaGrossCountData=gammaGrossCountData,
                            gammaDoseData=gammaDoseData)
+        # print(data)
+        # return ["WHY", "ISNT", "THIS", "WORKING"]
         return data
 
     def getDataSinceTime(self, recordingId, lastTime, requestedData):
@@ -789,44 +796,62 @@ class CAEN_Digitizer(Client):
 
         # I need the detector calls.
 
-        while self.isRecording:
-            [listmode_time, listmode_energy, histenergy] = self._daq_micro_measurement()
-            self.stopwatch += 100
+        [listmode_time, listmode_energy, histenergy] = self._daq_micro_measurement()
+        self.stopwatch += 100
+        if self.isRecording:
+            counter = 0
             for item in self.dataContainer[self.recordingId]:
-                one = self.dataContainer[self.recordingId][item]['timestamp']
-                two = self.dataContainer[self.recordingId][item]['listmode_time']
-                three = self.dataContainer[self.recordingId][item]['listmode_energy']
-                four = self.dataContainer[self.recordingId][item]['spectrum']
-                five = self.dataContainer[self.recordingId][item]['grosscounts']
-                six = self.dataContainer[self.recordingId][item]['dose']
+                one = self.dataContainer[self.recordingId][item]['timestamp'][counter]
+                two = self.dataContainer[self.recordingId][item]['listmode_time'][counter]
+                three = self.dataContainer[self.recordingId][item]['listmode_energy'][counter]
+                four = self.dataContainer[self.recordingId][item]['spectrum'][counter]
+                five = self.dataContainer[self.recordingId][item]['grosscounts'][counter]
+                six = self.dataContainer[self.recordingId][item]['dose'][counter]
                 one = np.vstack((one, self.stopwatch))
-                two = np.vstack((two, listmode_time))
-                three = np.vstack((three, listmode_energy))
-                four = np.vstack((four, histenergy))
-                five = np.vstack((five, np.sum(histenergy, axis=1)))
-                six = np.vstack((six, np.sum(histenergy)))
-                self.dataContainer[self.recordingId][item]['timestamp'] = one
-                self.dataContainer[self.recordingId][item]['listmode_time'] = two
-                self.dataContainer[self.recordingId][item]['listmode_energy'] = three
-                self.dataContainer[self.recordingId][item]['spectrum'] = four
-                self.dataContainer[self.recordingId][item]['grosscounts'] = five
-                self.dataContainer[self.recordingId][item]['dose'] = six
-            # self.timestamp = np.vstack((self.timestamp, self.stopwatch))
-            # self.listmode_time = np.vstack((self.listmode_time, listmode_time))
-            # self.listmode_energy = np.vstack((self.listmode_energy, listmode_energy))
-            # self.histogram_energy = np.vstack((self.histogram_energy, histenergy))
-            # for item in
-            self.timestamp[self.recordingId]
+                two = np.vstack((two, listmode_time[counter]))
+                three = np.vstack((three, listmode_energy[counter]))
+                four = np.vstack((four, histenergy[counter]))
+                five = np.vstack((five, np.sum(histenergy[counter], axis=1)))
+                six = np.vstack((six, np.sum(histenergy[counter])))
+                self.dataContainer[self.recordingId][item]['timestamp'][counter] = one
+                self.dataContainer[self.recordingId][item]['listmode_time'][counter] = two
+                self.dataContainer[self.recordingId][item]['listmode_energy'][counter] = three
+                self.dataContainer[self.recordingId][item]['spectrum'][counter] = four
+                self.dataContainer[self.recordingId][item]['grosscounts'][counter] = five
+                self.dataContainer[self.recordingId][item]['dose'][counter] = six
+                self.timestamp[self.recordingid][item]['timestamp'][counter] = self.stopwatch
+                counter += 1
+        timestamp = self.stopwatch
+        listmode_time = listmode_time
+        listmode_energy = listmode_energy
+        spectrum = histenergy
+        # print(spectrum)
+        grosscounts = np.sum(histenergy, axis=1)
+        dose = np.sum(histenergy, axis=1)
+        # self.timestamp = np.vstack((self.timestamp, self.stopwatch))
+        # self.listmode_time = np.vstack((self.listmode_time, listmode_time))
+        # self.listmode_energy = np.vstack((self.listmode_energy, listmode_energy))
+        # self.histogram_energy = np.vstack((self.histogram_energy, histenergy))
+        # for item in
+        counter = 0
+        for item in self.detectors:
+            self.current_timestamp = self.stopwatch
+            self.current_listmode_time = listmode_time[counter, :]
+            self.current_listmode_energy = listmode_energy[counter, :]
+            self.current_spectrum = spectrum[counter, :]
+            self.current_grosscounts = grosscounts[counter]
+            self.current_dose = dose[counter]
+            counter += 1
 
     def _daq_micro_measurement(self):
-        triggerTimeTag = []
-        energyDeposited = []
+        triggerTimeTag = np.zeros((len(self.detectors), 0))
+        energyDeposited = np.zeros((len(self.detectors), 0))
         # calibration factors, assuming linear calibration y=mx+b for now
         m = 0.2
         b = 0
         i = 0  # channel to read.
         # while is for round robin implementation.
-        while self._get_posix_time()-self.recordingConfiguration.POSIXStartTime < 100:
+        while self._get_posix_time()-self.stopwatch < 100:
             generator = self.daq_generators[i]
             for line in generator:
                 if line:
@@ -840,8 +865,8 @@ class CAEN_Digitizer(Client):
 
                     # I don't think I care about trigger time.
                     time = float(words[0]) / 4E9 * 1000.0  # trigger time in ns (4ns/clock tick)
-                    triggerTimeTag.append(time-self.recordingConfiguration.POSIXStartTime)
-                    energyDeposited.append((float(words[1])*m) + b)  # total integrated energy of event in rough keV
+                    triggerTimeTag[i, :].hstack(time-self.recordingConfiguration.POSIXStartTime)
+                    energyDeposited[i, :].hstack((float(words[1])*m) + b)  # total integrated energy of event in rough keV
 
                     # uncomment for debugging
                     # print("Qlong is: " + str(qlong))
@@ -852,10 +877,12 @@ class CAEN_Digitizer(Client):
                 i = 0
 
         # Which means the recording stopped for reading or for some other reason.
-        listmode_triggerTimeTag = np.array(triggerTimeTag)
-        listmode_energyDeposited = np.array(energyDeposited)
+        listmode_triggerTimeTag = triggerTimeTag
+        listmode_energyDeposited = energyDeposited
         # build a histogram that can be called later
-        histEnergyDeposited, bin_edges = np.histogram(energyDeposited, bins=range(self.num_bins))
-        histEnergyDeposited = histEnergyDeposited
-
+        histEnergyDeposited = np.zeros((len(self.detectors), self.num_bins-1))
+        for i in range(len(self.detectors)):
+            histEnergyDeposited[i, :], bin_edges = np.histogram(energyDeposited, bins=range(self.num_bins))
+        # histEnergyDeposited = histEnergyDeposited
+        self.stopwatch += 100
         return listmode_triggerTimeTag, listmode_energyDeposited, histEnergyDeposited
