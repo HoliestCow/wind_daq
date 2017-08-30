@@ -1,1 +1,3 @@
-__all__ = ['ttypes', 'constants', 'PTU']
+from ttypes import *
+from constants import *
+from PTU import *
