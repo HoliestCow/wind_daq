@@ -309,8 +309,6 @@ class CAEN_Digitizer(Client):
                            gammaListData=gammaListData,
                            gammaGrossCountData=gammaGrossCountData,
                            gammaDoseData=gammaDoseData)
-        # print(data)
-        # return ["WHY", "ISNT", "THIS", "WORKING"]
         return data
 
     def getDataSinceTime(self, recordingId, lastTime, requestedData):

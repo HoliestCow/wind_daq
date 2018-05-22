@@ -48,6 +48,8 @@ def start_thrift_server(PTU_device):
 
 def main():
     UTK_PTU = CAEN_Digitizer()
+    # print(UTK_PTU.systemConfiguration)
+    # print(UTK_PTU.systemConfiguration.unitId)
     start_thrift_server(UTK_PTU)
     while True:
         UTK_PTU._daq_data_aggregator()
