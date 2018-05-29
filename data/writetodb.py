@@ -26,26 +26,24 @@ def dumptodb(db, t, datum):
                        'Spectrum',  # Data type
                        t,
                        0,  # Upper ROI counts
-                       t,
+                       1000,  # live_time ms
                        0,  # Lower ROI counts
                        0,  # Fine Gain
                        0.1,  # Response Time
                        600,  # High voltage
-                       t,
+                       1000,  # real time ms
                        -2,  # TickDelta
                        0,  #  TickNumber
                        0,  # Coarse gain
                        0)  # Energy cubic d
     db.fake_stack_datum(desired_outputs)
-    print('dumped')
-    print(t)
     return
 
 
 def main():
     targetFile = 'raw_stream_data.dat'
     isInitialize = True
-    db = DatabaseOperations('./ptu_db.sqlite3')
+    db = DatabaseOperations('./PTU_local.sqlite3')
     db.initialize_structure(numdetectors=1)
     counter = 0
     with io.open(targetFile, 'r', buffering=1) as f:
