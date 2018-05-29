@@ -257,7 +257,7 @@ def gen_wind_speed(interval):
 
     # total_time = (hour * 3600) + (minute * 60) + (sec)
 
-    con = sqlite3.connect("./data/ptu_db.sqlite3")
+    con = sqlite3.connect("./data/PTU_local.sqlite3")
     # df = pd.read_sql_query('SELECT Speed, SpeedError, Direction from Wind where\
     #                         rowid > "{}" AND rowid <= "{}";'
     #                         .format(total_time-200, total_time), con)
@@ -400,8 +400,7 @@ def gen_wind_histogram(interval, wind_speed_figure, sliderValue, auto_state):
 
     # total_time = (hour * 3600) + (minute * 60) + (sec)
 
-    # con = sqlite3.connect("./cvrs_db.sqlite3")
-    con = sqlite3.connect("./data/ptu_db.sqlite3")
+    con = sqlite3.connect("./data/PTU_local.sqlite3")
     # df = pd.read_sql_query('SELECT Speed, SpeedError, Direction from Wind where\
     #                         rowid > "{}" AND rowid <= "{}";'
     #                         .format(total_time-200, total_time), con)

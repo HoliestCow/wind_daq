@@ -5,8 +5,9 @@ import glob
 sys.path.append('./WIND-Thrift/gen-py')
 sys.path.insert(0, '/home/holiestcow/thrift-0.11.0/lib/py/build/lib.linux-x86_64-3.5')
 
-from CVRSServices.CVRSEndpoint import Client
-from server import CVRSHandler
+# from CVRSServices.CVRSEndpoint import Client
+# from server import CVRSHandler
+import CVRSServices.CVRSEndpoint
 # from CVRSServices.ttypes import (StatusCode, ControlType, Session, StartRecordingControlPayload,
 #                                  ControlPayloadUnion, ControlMessage, ControlMessageAck,
 #                                  RecordingUpdate, DefinitionAndConfigurationUpdate)
@@ -37,7 +38,7 @@ uuid_dict = {}
 
 def get_unitDefinition():
     global uuid_dict
-    uuid_dict['PTU'] = Thrift_UUID().generate_thrift_uuid()
+    uuid_dict['PTU'] = Thrift_UUID.generate_thrift_uuid()[-1]
     # Define what I am
     unit_definition = UnitDefinition(unitId=uuid_dict['PTU'],
                                      unitName='Fake_PTU_Unit',
@@ -51,9 +52,10 @@ def get_unitDefinition():
 def get_initialStatus():
     global uuid_dict
     # Define initial_status
+    uuid_dict['recordingId'] = Thrift_UUID.generate_thrift_uuid()[-1]
     initial_status = Status(unitId=uuid_dict['PTU'],
                             isRecording=True,
-                            recordingId=Thrift_UUID().generate_thrift_uuid(),
+                            recordingId=uuid_dict['recordingId'],
                             hardDriveUsedPercent=0.0,  # Placeholder value
                             batteryRemainingPercent=0.0,  # Placeholder value
                             systemTime=int(time.time()))
@@ -90,7 +92,7 @@ def get_gammaDefinitions():
         gridPosition=Vector(x=0.0, y=0.0, z=0.0),
         rotation=Quaternion(w=0.0, x=0.0, y=0.0, z=0.0))
 
-    uuid_dict['GammaDetector'] = Thrift_UUID().generate_thrift_uuid()
+    uuid_dict['GammaDetector'] = Thrift_UUID.generate_thrift_uuid()[-1]
 
     starting_gammaSpectrumConfig = GammaListAndSpectrumConfiguration(
         componentId=uuid_dict['GammaDetector'],
@@ -169,7 +171,7 @@ def get_environmentalDefinitions():
     global uuid_thrift
     environmentalDefinitions = []
 
-    uuid_thrift['TemperatureSensor'] = Thrift_UUID().generate_thrift_uuid()
+    uuid_thrift['TemperatureSensor'] = Thrift_UUID.generate_thrift_uuid()[-1]
 
     component = ComponentDefinition(
         componentId=uuid_thrift['TemperatureSensor'],
@@ -195,7 +197,7 @@ def get_navigationalDefinitions():
     global uuid_thrift
     navigationalDefinitions = []
 
-    uuid_thrift['GPS'] = Thrift_UUID().generate_thrift_uuid()
+    uuid_thrift['GPS'] = Thrift_UUID.generate_thrift_uuid()[-1]
 
     component = ComponentDefinition(
         componentId=uuid_thrift['GPS'],
@@ -233,7 +235,7 @@ def get_contextVideoDefinitions():
     global uuid_thrift
     contextVideoDefinitions = []
 
-    uuid_thrift['VideoCamera'] = Thrift_UUID().generate_thrift_uuid()
+    uuid_thrift['VideoCamera'] = Thrift_UUID.generate_thrift_uuid()[-1]
 
     component = ComponentDefinition(
         componentId=uuid_thrift['VideoCamera'],
@@ -365,7 +367,7 @@ def get_systemConfiguration(unitDefinition, systemDefinition):
 
 def get_recordingUpdate():
     global uuid_dict
-    uuid_dict['recordingID'] = Thrift_UUID().generate_thrift_uuid()
+    uuid_dict['recordingID'] = Thrift_UUID.generate_thrift_uuid()[-1]
 
     recordingConfig = RecordingConfiguration(
         unitId=uuid_dict['PTU'],
@@ -489,7 +491,9 @@ def main():
 
     # Create a client to use the protocol encoder
     # client = CVRSHandler.Client(protocol)
-    client = Client(protocol)
+    # client = Client(protocol)
+    client = CVRSServices.CVRSEndpoint.Client(protocol)
+    client.ping()
 
     # Connect!
     transport.open()
