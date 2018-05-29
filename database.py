@@ -61,3 +61,8 @@ class DatabaseOperations(object):
             self.c.execute("INSERT INTO det_{} VALUES {}".format(i, desired_outputs))
             self.conn.commit()
         return
+
+    def get_dataSince(self, start, stop):
+        # NOTE: This is messed up because I'm not quite sure how to pick detectors yet.
+        desired = self.c.execute("SELECT * FROM det_0 WHERE Time <= {} AND Time > {}".format(stop, start))
+        return desired
