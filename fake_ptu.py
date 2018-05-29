@@ -6,12 +6,12 @@ sys.path.append('./WIND-Thrift/gen-py')
 sys.path.insert(0, '/home/holiestcow/thrift-0.11.0/lib/py/build/lib.linux-x86_64-3.5')
 
 from CVRSServices.CVRSEndpoint import Client
-# from server import CVRSHandler
+from server import CVRSHandler
 # from CVRSServices.ttypes import (StatusCode, ControlType, Session, StartRecordingControlPayload,
 #                                  ControlPayloadUnion, ControlMessage, ControlMessageAck,
 #                                  RecordingUpdate, DefinitionAndConfigurationUpdate)
-from PTUPayload import UnitDefinition
-from server import
+from PTUPayload.ttypes import UnitDefinition
+# from server import
 from Exceptions.ttypes import InvalidSession
 
 from thrift import Thrift
@@ -21,11 +21,11 @@ from thrift.server import TServer
 from thrift.protocol import TBinaryProtocol
 
 import time
-import datetime
+import datetime as dt
 
 ############ Database Stuff ##############
 
-# from .thrift_uuid import *
+from thrift_uuid import Thrift_UUID
 from database import DatabaseOperations
 import numpy as np
 
@@ -37,15 +37,14 @@ uuid_dict = {}
 
 def get_unitDefinition():
     global uuid_dict
-    uuid_dict['PTU'] = generate_thrift_uuid()
+    uuid_dict['PTU'] = Thrift_UUID().generate_thrift_uuid()
     # Define what I am
-    unit_definition = UnitDefinition(uuid=uuid_dict['PTU'],
+    unit_definition = UnitDefinition(unitId=uuid_dict['PTU'],
                                      unitName='Fake_PTU_Unit',
                                      softwareVersion='0.1',
                                      hardwareRevision='0.1',
                                      vendor='University of Tennessee - Knoxville',
-                                     unitType='Wearable',
-                                     protocolVersion=PROTOCOL_VERSION)
+                                     unitType='Wearable')
     return unit_definition
 
 
@@ -54,7 +53,7 @@ def get_initialStatus():
     # Define initial_status
     initial_status = Status(unitId=uuid_dict['PTU'],
                             isRecording=True,
-                            recordingId=generate_thrift_uuid(),
+                            recordingId=Thrift_UUID().generate_thrift_uuid(),
                             hardDriveUsedPercent=0.0,  # Placeholder value
                             batteryRemainingPercent=0.0,  # Placeholder value
                             systemTime=int(time.time()))
@@ -91,7 +90,7 @@ def get_gammaDefinitions():
         gridPosition=Vector(x=0.0, y=0.0, z=0.0),
         rotation=Quaternion(w=0.0, x=0.0, y=0.0, z=0.0))
 
-    uuid_dict['GammaDetector'] = generate_thrift_uuid()
+    uuid_dict['GammaDetector'] = Thrift_UUID().generate_thrift_uuid()
 
     starting_gammaSpectrumConfig = GammaListAndSpectrumConfiguration(
         componentId=uuid_dict['GammaDetector'],
@@ -131,7 +130,7 @@ def get_gammaDefinitions():
             numberOfChannels=1024,
             physicalDimensions=physicalDimensions,
             detectorMaterial=detectorMaterial,
-            startingGammaConfiguration=startingGammaConfiguration
+            startingGammaConfiguration=startingGammaConfiguration,
             angularEfficiencies=angularEfficiencyDefinitions)
     ]
 
@@ -170,7 +169,7 @@ def get_environmentalDefinitions():
     global uuid_thrift
     environmentalDefinitions = []
 
-    uuid_thrift['TemperatureSensor'] = generate_thrift_uuid()
+    uuid_thrift['TemperatureSensor'] = Thrift_UUID().generate_thrift_uuid()
 
     component = ComponentDefinition(
         componentId=uuid_thrift['TemperatureSensor'],
@@ -196,7 +195,7 @@ def get_navigationalDefinitions():
     global uuid_thrift
     navigationalDefinitions = []
 
-    uuid_thrift['GPS'] = generate_thrift_uuid()
+    uuid_thrift['GPS'] = Thrift_UUID().generate_thrift_uuid()
 
     component = ComponentDefinition(
         componentId=uuid_thrift['GPS'],
@@ -204,8 +203,6 @@ def get_navigationalDefinitions():
         vendorName='University of Tennessee - Knoxville',
         serialNumber='00023224')
     navOutputDefinition = navOutputDefinition(
-        sensorFrameOfReference=
-        datum=
         hasLatitude=True,
         hasLongitude=True,
         hasAltitude=False,
@@ -236,7 +233,7 @@ def get_contextVideoDefinitions():
     global uuid_thrift
     contextVideoDefinitions = []
 
-    uuid_thrift['VideoCamera'] = generate_thrift_uuid()
+    uuid_thrift['VideoCamera'] = Thrift_UUID().generate_thrift_uuid()
 
     component = ComponentDefinition(
         componentId=uuid_thrift['VideoCamera'],
@@ -281,18 +278,18 @@ def get_systemDefinition():
         # gammaListDefinitions=  # NOTE: I haven't set this up yet.
         gammaGrossCountDefinitions=gammaGrossCountDefinitions,
         gammaDoseDefinitions=[],
-        neutronListDefinitions=[]
-        neutronSpectrumDefinitions=[]
-        neutronGrossCountDefinitions=[]
-        environmentalDefinitions=environmentalDefinitions
-        navigationSensorDefinitions=navigationalDefinitions
-        contextVideoDefinitions=contextVideoDefinition
-        contextPointCloudDefinitions=[]
-        contextVoxelDefinitions=[]
-        contextMeshDefinitions=[]
-        algorithmDefinitions=[]
+        neutronListDefinitions=[],
+        neutronSpectrumDefinitions=[],
+        neutronGrossCountDefinitions=[],
+        environmentalDefinitions=environmentalDefinitions,
+        navigationSensorDefinitions=navigationalDefinitions,
+        contextVideoDefinitions=contextVideoDefinition,
+        contextPointCloudDefinitions=[],
+        contextVoxelDefinitions=[],
+        contextMeshDefinitions=[],
+        algorithmDefinitions=[],
         apiVersion=PROTOCOL_VERSION,
-        passiveMaterialDefinitions=[]
+        passiveMaterialDefinitions=[],
         timeStamp=int(time.time() * 1000),
         contextStreamDefinitions=[])
 
@@ -368,7 +365,7 @@ def get_systemConfiguration(unitDefinition, systemDefinition):
 
 def get_recordingUpdate():
     global uuid_dict
-    uuid_dict['recordingID'] = generate_thrift_uuid()
+    uuid_dict['recordingID'] = Thrift_UUID().generate_thrift_uuid()
 
     recordingConfig = RecordingConfiguration(
         unitId=uuid_dict['PTU'],
@@ -482,7 +479,7 @@ def get_gammaGrossCountData(db):
 def main():
     global uuid_dict
     # Make socket
-    transport = TSocket.TSocket('127.0.0.1', 9090)
+    transport = TSocket.TSocket('0.0.0.0', 8050)
 
     # Buffering is critical. Raw sockets are very slow
     transport = TTransport.TBufferedTransport(transport)
@@ -491,7 +488,8 @@ def main():
     protocol = TBinaryProtocol.TBinaryProtocol(transport)
 
     # Create a client to use the protocol encoder
-    client = CVRSHandler.Client(protocol)
+    # client = CVRSHandler.Client(protocol)
+    client = Client(protocol)
 
     # Connect!
     transport.open()
@@ -510,7 +508,7 @@ def main():
                                 systemDefinition, systemConfiguration,
                                 recordingUpdate)
 
-    targetFile = 'raw_stream_data.dat'
+    targetFile = './data/raw_stream_data.dat'
     isInitialize = True
     db = DatabaseOperations('./PTU_local.sqlite3')
     db.initialize_structure(numdetectors=1)
@@ -546,7 +544,7 @@ def main():
                 # 2) report the status (should be the same message)
                 status = get_initialStatus()
                 definitionAndConfigurationUpdate = DefinitionAndConfigurationUpdate(
-                    systemDefinition=systemDefinition
+                    systemDefinition=systemDefinition,
                     systemConfiguration=systemConfiguration)
 
                 isGood = client.reportStatus(
@@ -592,25 +590,25 @@ def main():
                     systemHealth=Health(Nominal),
                     isEOF=False,
                     recordingConfig=recordingConfiguration,
-                    gammaSpectrumData=gammaSpectrumData
-                    gammaListData=gammaListData
-                    gammaGrossCountData=gammaGrossCountData
-                    gammaDoseData=gammaDoseData
-                    neutronListData=neutronListData
-                    neutronSpectrumData=neutronSpectrumData
-                    neutronGrossCountData=neutronGrossCountData
-                    environmentalData=environmentalData
-                    navigationData=navigationData
-                    videoData=videoData
-                    pointCloudData=pointCloudData
-                    voxelData=voxelData
-                    meshData=meshData
-                    messages=messages
-                    waypoints=waypoints
-                    boundingBoxes=boundingoboxes
-                    markers=markers
-                    algorithmData=algorithmData
-                    streamIndexData=streamIndexData
+                    gammaSpectrumData=gammaSpectrumData,
+                    gammaListData=gammaListData,
+                    gammaGrossCountData=gammaGrossCountData,
+                    gammaDoseData=gammaDoseData,
+                    neutronListData=neutronListData,
+                    neutronSpectrumData=neutronSpectrumData,
+                    neutronGrossCountData=neutronGrossCountData,
+                    environmentalData=environmentalData,
+                    navigationData=navigationData,
+                    videoData=videoData,
+                    pointCloudData=pointCloudData,
+                    voxelData=voxelData,
+                    meshData=meshData,
+                    messages=messages,
+                    waypoints=waypoints,
+                    boundingBoxes=boundingoboxes,
+                    markers=markers,
+                    algorithmData=algorithmData,
+                    streamIndexData=streamIndexData,
                     configuration=configuration)
 
                 isGood = client.pushData(
