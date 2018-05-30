@@ -40,11 +40,14 @@ def main():
     print(np.std(payload))
 
     # with open(outputFile, 'w', buffering=0) as fw:
+    last = time.time()
     with io.open(outputFile, 'w', buffering=1) as fw:
         for i in range(len(x)):
             time.sleep(x[i])  # make this an asynchronous process.
-            message = '{} {}\n'.format(x[i], payload[i])
+            message = unicode('{} {}\n'.format(x[i], payload[i]))
             fw.write(message)
+            print(time.time() - last)
+            last = time.time()
     return
 
 main()
