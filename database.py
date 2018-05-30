@@ -1,68 +1,62 @@
+
 import numpy as np
 import sqlite3
+import time
 
 class DatabaseOperations(object):
     def __init__(self, filename):
         # check if the file exists:
-        self.conn = sqlite3.connect(filename)
+        self.filename = filename
+        self.conn = sqlite3.connect(self.filename)
         self.c = self.conn.cursor()
 
     def initialize_structure(self, config=None, numdetectors=None):
         # with unit configuration, initialize the entire configuration
         # I may need much more than config to be fair.
 
-        if config is not None:
-            for i in range(len(config.energyCalibration)):
-                self.c.execute('''CREATE TABLE det_{} (Time real, PositionId integer, Spectrum_Array text, CPS real,
-                                  isAlive integer, Energy_cubic_a  real, Energy_cubic_b real, Energy_cubic_c real,
-                                  DataType text, Timestamp real, Upper_ROI_Counts real, live_time real,
-                                  Lower_ROI_Counts real, fine_gain real, response_time real, high_voltage integer,
-                                  real_time real, tickdelta integer, tick integer, coarse_gain integer,
-                                  energy_cubic_d integer)'''.format(i))
-        elif numdetectors is not None:
-            for i in range(numdetectors):
-                self.c.execute('''CREATE TABLE det_{} (Time real, PositionId integer, Spectrum_Array text, CPS real,
-                                  isAlive integer, Energy_cubic_a  real, Energy_cubic_b real, Energy_cubic_c real,
-                                  DataType text, Timestamp real, Upper_ROI_Counts real, live_time real,
-                                  Lower_ROI_Counts real, fine_gain real, response_time real, high_voltage integer,
-                                  real_time real, tickdelta integer, tick integer, coarse_gain integer,
-                                  energy_cubic_d integer)'''.format(i))
+        self.c.execute('''CREATE TABLE IF NOT EXISTS det_0(Time integer, PositionId integer, Spectrum_Array text, CPS real)''')
+        # if config is not None:
+        #     for i in range(len(config.energyCalibration)):
+        #         self.c.execute('''CREATE TABLE IF NOT EXISTS det_{} (Time integer, PositionId integer, Spectrum_Array text, CPS real)'''.format(i))
+        # elif numdetectors is not None:
+        #     for i in range(numdetectors):
+        #         self.c.execute('''CREATE TABLE IF NOT EXISTS det_{} (Time integer, PositionId integer, Spectrum_Array text, CPS real)'''.format(i))
 
     def fake_stack_datum(self, stuff):
-        self.c.execute("INSERT INTO det_0 VALUES {}".format(stuff))
+        self.c.execute("INSERT INTO det_0(Time, PositionId, Spectrum_Array, CPS) VALUES ({}, {}, {}, {});".format(int(time.time() * 1000), stuff[0], stuff[1], stuff[2]))
         self.conn.commit()
         return
 
     def stack_datum(self, datum, config):
+        print('stacking datum')
+        if datum.gammaSpectrumData is None:
+            print('no data')
+            return
+        c = time.time()
         for i in range(len(datum.gammaSpectrumData)):
-            extracted_array = [float(x) for item in datum.gammaSpectrumData[i].intSpectrum]
-            desired_outputs = (datum.gammaSpectrumData[i].timeStamp,
-                               0,  # PositionID (I'm going off of the train dataset
-                               datum.gammaSpectrumData[i].spectrum.intSpectrum,
-                               np.sum(np.array(extracted_array)) /
-                               datum.gammaSpectrumData[i].liveTime,  # cps
-                               1,  # isAlive
-                               0,  # Energy Cubic a  Not sure where to get this data from. Fuck it.
-                               0,  # Energy Cubic b
-                               0,  # Energy Cubic c
-                               'Spectrum',  # Data type
-                               datum.gammaSpectrumData[i].timeStamp,
-                               0,  # Upper ROI counts
-                               datum.gammaSpectrumData[i].liveTime,
-                               0,  # Lower ROI counts
-                               0,  # Fine Gain
-                               0.1,  # Response Time
-                               600,  # High voltage
-                               datum.gammaSpectrumData[i].realTime,
-                               -2,  # TickDelta
-                               0,  #  TickNumber
-                               0,  # Coarse gain
-                               0)  # Energy cubic d
-            self.c.execute("INSERT INTO det_{} VALUES {}".format(i, desired_outputs))
-            self.conn.commit()
+        # print(datum.gammaSpectrumData[i])
+            extracted_array = [str(item) for item in datum.gammaSpectrumData[i].spectrum.intSpectrum.spectrumInt]
+            extracted_array = ','.join(extracted_array)
+            extracted_array = '\"' + extracted_array + '\"'
+            timestamp = float(datum.gammaSpectrumData[i].timeStamp)
+            positionid = 1  # PositionID (I'm going off of the train dataset
+            cps = datum.gammaGrossCountData[i].counts
+            # cps = float(np.sum(np.array(extracted_array)) / \
+            #     float(datum.gammaSpectrumData[i].liveTime))  # CPS
+            # print(cps)
+            # self.c.execute("INSERT INTO det_{}(Time, Spectrum_Array, CPS) \
+            #                 VALUES({}, {}, {});".format(
+            # self.c.execute("INSERT INTO det_{}(Time, PositionId, CPS, Spectrum_Array) VALUES ({}, {}, {}, {});".format(i, timestamp, positionid, cps, text_array))
+            self.c.execute("INSERT INTO det_0(Time, PositionId, CPS, Spectrum_Array) VALUES ({}, {}, {}, {});".format(timestamp, positionid, cps, extracted_array))
+        self.conn.commit()
+        d = time.time()
+        print('DB write: {}s'.format(d-c))
         return
 
     def get_dataSince(self, start, stop):
         # NOTE: This is messed up because I'm not quite sure how to pick detectors yet.
-        desired = self.c.execute("SELECT * FROM det_0 WHERE Time <= {} AND Time > {}".format(stop, start))
-        return desired
+        command = "SELECT * FROM det_0 WHERE Time <= {} AND Time >= {}".format(stop, start)
+        desired = self.c.execute(command)
+        # current = desired.fetchall()  # note sure if fetchall or fetchone
+        current = desired.fetchall()
+        return current

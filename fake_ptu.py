@@ -2,6 +2,7 @@
 ############### PTU STUFF ###############
 import sys
 import glob
+import io
 sys.path.append('./WIND-Thrift/gen-py')
 sys.path.insert(0, '/home/holiestcow/thrift-0.11.0/lib/py/build/lib.linux-x86_64-3.5')
 
@@ -11,14 +12,41 @@ import CVRSServices.CVRSEndpoint
 # from CVRSServices.ttypes import (StatusCode, ControlType, Session, StartRecordingControlPayload,
 #                                  ControlPayloadUnion, ControlMessage, ControlMessageAck,
 #                                  RecordingUpdate, DefinitionAndConfigurationUpdate)
-from PTUPayload.ttypes import UnitDefinition
+from PTUPayload.ttypes import (UnitDefinition, UnitType, Status,
+                               SystemDefinition, SystemConfiguration,
+                               RecordingConfiguration, RecordingType, DataPayload)
+from  CVRSServices.ttypes import (RecordingUpdate,
+                                  DefinitionAndConfigurationUpdate)
+from GammaSensor.ttypes import (SIPMSettings, PMTSettings, SIPM_PMTSettings,
+                                GammaListAndSpectrumConfiguration,
+                                GammaListAndSpectrumDefinition,
+                                GammaGrossCountDefinition,
+                                GammaGrossCountConfiguration,
+                                GammaSpectrumData,
+                                GammaGrossCountData)
+from DetectorCharacteristics.ttypes import (EnergyResolution, DetectorMaterial,
+                                            EnergyCalibration)
+from Angular.ttypes import (AngleEfficiencyPair, AngularEfficiencyDefinition)
+from Component.ttypes import (GridPositionAndOrientation, ComponentDefinition)
+from Common.ttypes import (Vector, Quaternion)
+from PhysicalDimensions.ttypes import (RectangularDimensions)
+from NavigationSensor.ttypes import (NavigationOutputDefinition,
+                                     NavigationSensorDefinition)
+from EnvironmentalSensor.ttypes import (EnvironmentalTypes,
+                                        EnvironmentalSensorDefinition)
+from ContextSensor.ttypes import (ContextVideoConfiguration,
+                                  ContextVideoDefinition)
+from Spectrum.ttypes import (SpectrumResult, Spectrum, DoubleSpectrum,
+                             SpectrumFormat)
+from Health.ttypes import (Health)
+
 # from server import
-from Exceptions.ttypes import InvalidSession
+
+from UUID.ttypes import UUID
 
 from thrift import Thrift
 from thrift.transport import TSocket
 from thrift.transport import TTransport
-from thrift.server import TServer
 from thrift.protocol import TBinaryProtocol
 
 import time
@@ -38,28 +66,35 @@ uuid_dict = {}
 
 def get_unitDefinition():
     global uuid_dict
-    uuid_dict['PTU'] = Thrift_UUID.generate_thrift_uuid()[-1]
+    x = Thrift_UUID.generate_thrift_uuid()
+    uuid_dict['PTU'] = UUID(
+        leastSignificantBits=x[0],
+        mostSignificantBits=x[1])
     # Define what I am
     unit_definition = UnitDefinition(unitId=uuid_dict['PTU'],
                                      unitName='Fake_PTU_Unit',
                                      softwareVersion='0.1',
                                      hardwareRevision='0.1',
                                      vendor='University of Tennessee - Knoxville',
-                                     unitType='Wearable')
+                                     unitType=UnitType.Wearable)
     return unit_definition
 
 
 def get_initialStatus():
     global uuid_dict
     # Define initial_status
-    uuid_dict['recordingId'] = Thrift_UUID.generate_thrift_uuid()[-1]
+    global uuid_dict
+    x = Thrift_UUID.generate_thrift_uuid()
+    uuid_dict['recordingId'] = UUID(
+        leastSignificantBits=x[0],
+        mostSignificantBits=x[1])
     initial_status = Status(unitId=uuid_dict['PTU'],
                             isRecording=True,
                             recordingId=uuid_dict['recordingId'],
                             hardDriveUsedPercent=0.0,  # Placeholder value
                             batteryRemainingPercent=0.0,  # Placeholder value
                             systemTime=int(time.time()))
-    return
+    return initial_status
 
 
 def get_gammaDefinitions():
@@ -92,7 +127,10 @@ def get_gammaDefinitions():
         gridPosition=Vector(x=0.0, y=0.0, z=0.0),
         rotation=Quaternion(w=0.0, x=0.0, y=0.0, z=0.0))
 
-    uuid_dict['GammaDetector'] = Thrift_UUID.generate_thrift_uuid()[-1]
+    x = Thrift_UUID.generate_thrift_uuid()
+    uuid_dict['GammaDetector'] = UUID(
+        leastSignificantBits=x[0],
+        mostSignificantBits=x[1])
 
     starting_gammaSpectrumConfig = GammaListAndSpectrumConfiguration(
         componentId=uuid_dict['GammaDetector'],
@@ -111,12 +149,12 @@ def get_gammaDefinitions():
         depth=2 * 2.54,
         width=2 * 2.54,
         length=15.0)
-    detectorMaterial = DetectorMaterial(NaI)
+    detectorMaterial = DetectorMaterial.NaI
 
     angularEfficiencyDefinitions = []
     for i in range(0, 1024):  # by energy
         energy = (i + 1) * dE
-        angularEfficiences = []
+        angularEfficiencies = []
         for j in np.linspace(0.0, 360.0, num=37):  # by angle in 10 degree increments
             angularEfficiencies += [AngleEfficiencyPair(
                 angle=float(j) / 360.0 * 2 * np.pi,  # This is just a made up number
@@ -132,7 +170,7 @@ def get_gammaDefinitions():
             numberOfChannels=1024,
             physicalDimensions=physicalDimensions,
             detectorMaterial=detectorMaterial,
-            startingGammaConfiguration=startingGammaConfiguration,
+            startingGammaConfiguration=starting_gammaSpectrumConfig,
             angularEfficiencies=angularEfficiencyDefinitions)
     ]
 
@@ -145,7 +183,7 @@ def get_gammaDefinitions():
             component=component,
             physicalDimensions=physicalDimensions,
             detectorMaterial=detectorMaterial,
-            startingGammaGrossCountConfiguration=gammaGrossCountConfig,
+            startingGammaGrossCountConfiguration=starting_gammaGrossCountConfig,
             angularEfficiencies=angularEfficiencyDefinitions)
     ]
 
@@ -168,13 +206,16 @@ def get_gammaDefinitions():
 
 
 def get_environmentalDefinitions():
-    global uuid_thrift
+    global uuid_idct
     environmentalDefinitions = []
 
-    uuid_thrift['TemperatureSensor'] = Thrift_UUID.generate_thrift_uuid()[-1]
+    x = Thrift_UUID.generate_thrift_uuid()
+    uuid_dict['TemperatureSensor'] = UUID(
+        leastSignificantBits=x[0],
+        mostSignificantBits=x[1])
 
     component = ComponentDefinition(
-        componentId=uuid_thrift['TemperatureSensor'],
+        componentId=uuid_dict['TemperatureSensor'],
         componentName='TemperatureContextSensor',
         vendorName='University of Tennessee - Knoxville',
         serialNumber='00023224')
@@ -183,7 +224,7 @@ def get_environmentalDefinitions():
         gridPosition=Vector(x=10.0, y=10.0, z=10.0),
         rotation=Quaternion(w=0.0, x=0.0, y=0.0, z=0.0))
 
-    sensorType = EnvironmentalTypes(Temperature)
+    sensorType = EnvironmentalTypes.Temperature
     environmentalDefinitions += [
         EnvironmentalSensorDefinition(
             component=component,
@@ -194,17 +235,20 @@ def get_environmentalDefinitions():
 
 
 def get_navigationalDefinitions():
-    global uuid_thrift
+    global uuid_dict
     navigationalDefinitions = []
 
-    uuid_thrift['GPS'] = Thrift_UUID.generate_thrift_uuid()[-1]
+    x = Thrift_UUID.generate_thrift_uuid()
+    uuid_dict['GPS'] = UUID(
+        leastSignificantBits=x[0],
+        mostSignificantBits=x[1])
 
     component = ComponentDefinition(
-        componentId=uuid_thrift['GPS'],
+        componentId=uuid_dict['GPS'],
         componentName='NavigationalSensor',
         vendorName='University of Tennessee - Knoxville',
         serialNumber='00023224')
-    navOutputDefinition = navOutputDefinition(
+    navOutputDefinition = NavigationOutputDefinition(
         hasLatitude=True,
         hasLongitude=True,
         hasAltitude=False,
@@ -232,38 +276,42 @@ def get_navigationalDefinitions():
 
 
 def get_contextVideoDefinitions():
-    global uuid_thrift
-    contextVideoDefinitions = []
+    global uuid_dict
+    contextVideoDefinitions = None
+    contextVideoConfigurations = None
 
-    uuid_thrift['VideoCamera'] = Thrift_UUID.generate_thrift_uuid()[-1]
-
-    component = ComponentDefinition(
-        componentId=uuid_thrift['VideoCamera'],
-        componentName='VideoCameraMyDude',
-        vendorName='University of Tennessee - Knoxville',
-        serialNumber='1111111')
-    componentPositionAndOrientation = GridPositionAndOrientation(
-        gridPosition=Vector(x=-10.0, y=-10.0, z=-10.0),
-        rotation=Quaternion(w=0.0, x=0.0, y=0.0, z=0.0))
-    videoConfiguration = ContextVideoConfiguration(
-        componentId = uuid_thrift['VideoCamera'],
-        fileName='NANI.avi',
-        framesPerSecond=60.0,
-        verticalResolution=0,
-        horizontalResolution=0,
-        componentPositionAndOrientation=componentPositionAndOrientation,
-        verticalFOV=verticalFOV,
-        horizontalFOV=horizontalFOV,
-        isRectified=True,  # No idea what this means
-        isDeBayered=False,
-        timeStamp=int(time.time() * 1000))
-    # NOTE: there's also "intrinsics" if isRectified is False.
-
-    contextVideoDefinitions += [
-        ContextVideoDefinition(
-            component=component,
-            videoConfiguration=videoConfiguration)]
-    return contextVideoDefinitions
+    # x = Thrift_UUID.generate_thrift_uuid()
+    # uuid_dict['VideoCamera'] = UUID(
+    #     leastSignificantBits=x[0],
+    #     mostSignificantBits=x[1])
+    #
+    # component = ComponentDefinition(
+    #     componentId=uuid_dict['VideoCamera'],
+    #     componentName='VideoCameraMyDude',
+    #     vendorName='University of Tennessee - Knoxville',
+    #     serialNumber='1111111')
+    # componentPositionAndOrientation = GridPositionAndOrientation(
+    #     gridPosition=Vector(x=-10.0, y=-10.0, z=-10.0),
+    #     rotation=Quaternion(w=0.0, x=0.0, y=0.0, z=0.0))
+    # videoConfiguration = ContextVideoConfiguration(
+    #     componentId = uuid_dict['VideoCamera'],
+    #     fileName='NANI.avi',
+    #     framesPerSecond=60.0,
+    #     verticalResolution=0,
+    #     horizontalResolution=0,
+    #     componentPositionAndOrientation=componentPositionAndOrientation,
+    #     verticalFOV=verticalFOV,
+    #     horizontalFOV=horizontalFOV,
+    #     isRectified=True,  # No idea what this means
+    #     isDeBayered=False,
+    #     timeStamp=int(time.time() * 1000))
+    # # NOTE: there's also "intrinsics" if isRectified is False.
+    #
+    # contextVideoDefinitions += [
+    #     ContextVideoDefinition(
+    #         component=component,
+    #         videoConfiguration=videoConfiguration)]
+    return contextVideoDefinitions, contextVideoConfigurations
 
 
 def get_systemDefinition():
@@ -272,36 +320,26 @@ def get_systemDefinition():
     gammaSpectrumDefinitions, gammaGrossCountDefinitions = \
         get_gammaDefinitions()
     environmentalDefinitions = get_environmentalDefinitions()
-    navigationalDefinitions = get_navigationalDefinitions()
-    contextVideoDefinition = get_contextVideoDefinitions()
+    # navigationalDefinitions = get_navigationalDefinitions()
+    # contextVideoDefinition = get_contextVideoDefinitions()
 
     systemDefinition = SystemDefinition(
         gammaSpectrumDefinitions=gammaSpectrumDefinitions,
-        # gammaListDefinitions=  # NOTE: I haven't set this up yet.
         gammaGrossCountDefinitions=gammaGrossCountDefinitions,
-        gammaDoseDefinitions=[],
-        neutronListDefinitions=[],
-        neutronSpectrumDefinitions=[],
-        neutronGrossCountDefinitions=[],
         environmentalDefinitions=environmentalDefinitions,
-        navigationSensorDefinitions=navigationalDefinitions,
-        contextVideoDefinitions=contextVideoDefinition,
-        contextPointCloudDefinitions=[],
-        contextVoxelDefinitions=[],
-        contextMeshDefinitions=[],
-        algorithmDefinitions=[],
-        apiVersion=PROTOCOL_VERSION,
-        passiveMaterialDefinitions=[],
         timeStamp=int(time.time() * 1000),
-        contextStreamDefinitions=[])
+        apiVersion='yolo')
 
     return systemDefinition
 
 
 def construct_configurations(x, y):
     out = []
-    for i in range(len(x)):
-        out += [getattr(x[i], y)]
+    if x is not None:
+        for i in range(len(x)):
+            out += [getattr(x[i], y)]
+    else:
+        out = None
     return out
 
 
@@ -312,7 +350,7 @@ def get_systemConfiguration(unitDefinition, systemDefinition):
     gammaListConfigurations = construct_configurations(
         systemDefinition.gammaListDefinitions,
         'startingGammaConfiguration')
-    gammaGrossCountConfigurations = constrcut_configurations(
+    gammaGrossCountConfigurations = construct_configurations(
         systemDefinition.gammaGrossCountDefinitions,
         'startingGammaGrossCountConfiguration')
     gammaDoseConfigurations = construct_configurations(
@@ -330,9 +368,9 @@ def get_systemConfiguration(unitDefinition, systemDefinition):
         'startingNeutronGrossCountConfiguration')
 
     # NOTE: Skipping most of the video stuff for now.
-    contextVideoConfigurations = construct_configurations(
-        systemDefinition.contextVideoDefinitions,
-        'videoConfiguration')
+    # contextVideoConfigurations = construct_configurations(
+    #     systemDefinition.contextVideoDefinitions,
+    #     'videoConfiguration')
     # contextPointCloudConfigurations = construct_configurations(
     #     systemDefinition.contextPointCloudDefinitions,
     #     'startingPointCloudConfiguration')
@@ -346,8 +384,8 @@ def get_systemConfiguration(unitDefinition, systemDefinition):
 
     passiveMaterialConfigurations = systemDefinition.passiveMaterialDefinitions
 
-    contextStreamConfigurations = \
-        systemDefinition.contextStreamDefinitions.configuration
+    # contextStreamConfigurations = \
+    #     systemDefinition.contextStreamDefinitions.configuration
 
     systemConfiguration = SystemConfiguration(
         unitId=unitDefinition.unitId,
@@ -356,28 +394,22 @@ def get_systemConfiguration(unitDefinition, systemDefinition):
         gammaGrossCountConfigurations=gammaGrossCountConfigurations,
         neutronListConfigurations=neutronListConfigurations,
         neutronSpectrumConfigurations=neutronSpectrumConfigurations,
-        neutronGrossCountConfigurations=neturonGrossCountConfigurations,
-        contextVideoConfigurations=contextVideoConfigurations,
-        apiVersion=PROTOCOL_VERSION,
-        passiveMaterialDefinitions=passiveMaterialConfigurations,
-        contextStreamConfigurations=contextStreamConfigurations)
+        neutronGrossCountConfigurations=neutronGrossCountConfigurations)
 
     return systemConfiguration
 
 
 def get_recordingUpdate():
-    global uuid_dict
-    uuid_dict['recordingID'] = Thrift_UUID.generate_thrift_uuid()[-1]
 
     recordingConfig = RecordingConfiguration(
         unitId=uuid_dict['PTU'],
-        recordingId=uuid_dict['recordingID'],
+        recordingId=uuid_dict['recordingId'],
         campaign='Test',
         tag='yolo',
         description='Fake PTU Testing to make sure the CVRS is working as intended',
         location='Somewhere',
         fileName='PTU_local.sqlite3',
-        recordingType=RecordingType(Measurement),
+        recordingType=RecordingType.Measurement,
         recordingDuration=0,
         POSIXStartTime=int(time.time()),
         measurementNumber=1)
@@ -386,102 +418,97 @@ def get_recordingUpdate():
     return recordingUpdate, recordingConfig
 
 
-def dumptodb(db, t, datum):
-    print('bathroom')
-    hacked_spectrum = datum.tolist()
-    hacked_spectrum = [str(x) for x in hacked_spectrum]
-    hacked_spectrum = ','.join(hacked_spectrum)
-    #  (I'm going off of the train dataset)
-    desired_outputs = (t,  # this is timestamp
-                       0,  # PositionID
-                       hacked_spectrum,
-                       np.sum(datum),  # cps
-                       1,  # isAlive
-                       0,  # Energy Cubic a  Not sure where to get this data from. Fuck it.
-                       0,  # Energy Cubic b
-                       0,  # Energy Cubic c
-                       'Spectrum',  # Data type
-                       t,
-                       0,  # Upper ROI counts
-                       t,
-                       0,  # Lower ROI counts
-                       0,  # Fine Gain
-                       0.1,  # Response Time
-                       600,  # High voltage
-                       t,
-                       -2,  # TickDelta
-                       0,  #  TickNumber
-                       0,  # Coarse gain
-                       0)  # Energy cubic d
-    db.fake_stack_datum(desired_outputs)
-    return
-
-
-def get_gammaSpectrumData(db):
+def get_gammaSpectrumData(db, lasttime):
     global uuid_dict
     # Gets the current time and just yanks the past seconds worth of data.
     # NOTE: There may be data loss if there have been payload sending failures.
     # See Issue # 1 in the github repo
     now = int(time.time() * 1000)
 
+    lasttime = time.time() - 5
+
     out = []
+    desired = db.get_dataSince(now - lasttime * 1000, now)
+    # current = desired[-1]
+    current = desired
+    if current is not None:
+        # Only accept the last row, see the note above.
+        for row in current:
+            spectrum = row[2].split(',')
+            intSpectrum = [int(x) for x in spectrum]
+            timestamp = int(row[0])
+            # realtime = int(current[-5])
+            # livetime = int(current[-10])
+            realtime = 1
+            livetime = 1
 
-    tuples = db.get_dataSince(now - 1000, now)
-    # Only accept the last row, see the note above.
-    current = tuples[-1]
-    spectrum = current[2].split(',')
-    intSpectrum = [int(x) for x in spectrum]
-    doubleSpectrum = [float(x) for x in spectrum]
-    timestamp = int(current[9])
-    realtime = int(current[-5])
-    livetime = int(current[-10])
+            integerSpectrum = Spectrum(
+                spectrumInt=intSpectrum,
+                format=SpectrumFormat.ARRAY,
+                channelCount=len(intSpectrum),
+                liveTime=livetime)
 
-    spectrumResult = SpectrumResult(
-        intSpectrum=intSpectrum,
-        doubleSpectrum=doubleSpectrum)
+            spectrumResult = SpectrumResult(
+                intSpectrum=integerSpectrum)
 
-    out += [GammaSpectrumData(
-        componentId=uuid_dict['GammaDetector'],
-        timeStamp=timestamp,
-        systemHealth=Health(Nominal),
-        isEOF=False,
-        spectrum=spectrumResult,
-        liveTime=livetime,
-        realTime=realtime)]
+            out += [GammaSpectrumData(
+                componentId=uuid_dict['GammaDetector'],
+                timeStamp=timestamp,
+                health=Health.Nominal,
+                spectrum=spectrumResult,
+                liveTime=livetime,
+                realTime=realtime)]
+    else:
+        out += [GammaSpectrumData(
+            componentId=uuid_dict['GammaDetector'],
+            timeStamp=int(time.time() * 1000),
+            health=Health.Nominal)]
+
     return out
 
 
-def get_gammaGrossCountData(db):
+def get_gammaGrossCountData(db, lasttime):
     out = []
     global uuid_dict
     # Gets the current time and just yanks the past seconds worth of data.
     # NOTE: There may be data loss if there have been payload sending failures.
     # See Issue # 1 in the github repo
-    now = int(time.time() * 1000)
-    tuples = db.get_dataSince(now - 1000, now)
-    # Only accept the last row, see the note above.
-    current = tuples[-1]
-    spectrum = current[2].split(',')
-    intSpectrum = [int(x) for x in spectrum]
-    grossCounts = sum(intSpectrum)
-    timestamp = int(current[9])
-    realtime = int(current[-5])
-    livetime = int(current[-10])
 
-    out += [GammaGrossCountData(
-        componentId=uuid_dict['GammaDetector'],
-        timeStamp=timestamp,
-        systemHealth=Health(Nominal),
-        counts=grossCounts,
-        liveTime=livetime,
-        realTime=realtime)]
+    lasttime = time.time() - 5
+    now = int(time.time() * 1000)
+    tuples = db.get_dataSince(now - lasttime * 1000, now)
+    # Only accept the last row, see the note above.
+    # current = tuples.fetchall()
+    # current = tuples[-1]
+    current = tuples
+    if current is not None:
+        for row in current:
+            spectrum = row[2].split(',')
+            intSpectrum = [int(x) for x in spectrum]
+            grossCounts = sum(intSpectrum)
+            timestamp = int(row[0])
+            realtime = 1
+            livetime = 1
+
+            out += [GammaGrossCountData(
+                componentId=uuid_dict['GammaDetector'],
+                timeStamp=timestamp,
+                health=Health.Nominal,
+                counts=grossCounts,
+                liveTime=livetime,
+                realTime=realtime)]
+    else:
+        out += [GammaGrossCountData(
+            componentId=uuid_dict['GammaDetector'],
+            timeStamp=int(time.time() * 1000),
+            health=Health.Nominal)]
     return out
 
 
 def main():
     global uuid_dict
     # Make socket
-    transport = TSocket.TSocket('0.0.0.0', 8050)
+    transport = TSocket.TSocket('127.0.0.1', 9090)
 
     # Buffering is critical. Raw sockets are very slow
     transport = TTransport.TBufferedTransport(transport)
@@ -493,7 +520,6 @@ def main():
     # client = CVRSHandler.Client(protocol)
     # client = Client(protocol)
     client = CVRSServices.CVRSEndpoint.Client(protocol)
-    client.ping()
 
     # Connect!
     transport.open()
@@ -501,140 +527,123 @@ def main():
     unit_definition = get_unitDefinition()
     # Initiate handshake
     session = client.registerPtu(unitDefinition=unit_definition)
-    time.sleep(5)  # this method returns a session class from CVRSServices
+    # time.sleep(5)  # this method returns a session class from CVRSServices
 
     status = get_initialStatus()
     systemDefinition = get_systemDefinition()
-    systemConfiguration = get_systemConfiguration(systemDefinition)
+    systemConfiguration = get_systemConfiguration(unit_definition, systemDefinition)
     recordingUpdate, recordingConfiguration = get_recordingUpdate()
 
     ptu_message = client.define(session.sessionId, status,
                                 systemDefinition, systemConfiguration,
                                 recordingUpdate)
 
-    targetFile = './data/raw_stream_data.dat'
-    isInitialize = True
     db = DatabaseOperations('./PTU_local.sqlite3')
-    db.initialize_structure(numdetectors=1)
+    # db.initialize_structure(numdetectors=1)
     counter = 0
-    with io.open(targetFile, 'r', buffering=1) as f:
-        f.seek(0, 2) # Go to the end of the file
-        t = int(time.time())
-        juice = []
-        while True:
-            # time.sleep(1)  # Sleep for one second
-            # NOTE: The "1Hz" clock is governed by measurement since I don't have a formal server client architecture setup between the packaging layer and the measurement layer. Time per report is a little  over a second since an interaction has to occur before it sends the payload
-            # 1) Look for  file changes and dump to the database
-            line = f.readline().strip()
-            if not line:
-                time.sleep(0.01)  # Sleep for 10 milliseconds
-                continue
-            if isInitialize:
-                isInitialize = False
-                words = line.split()
-                prev_time = float(words[0])
-            words = line.split()
-            x = float(words[0])
-            counter += x
-            charge = float(words[1])
-            if counter >= 1:
-                counts, bin_edges = np.histogram(np.array(juice), bins=1024, range=(0, 28000))
-                # bin_edges = bin_edges[1:]
-                dumptodb(db, t * 1000, counts)
-                juice = []
-                t += 1
-                counter = 0
+    lasttime = time.time()
+    while True:
+        time.sleep(1.0)  # Sleep for one second
+        a = time.time()
+        # 1) Look for  file changes and dump to the database
+        # 2) report the status (should be the same message)
+        status = get_initialStatus()
+        # definitionAndConfigurationUpdate = DefinitionAndConfigurationUpdate(
+        #     systemDefinition=systemDefinition,
+        #     systemConfiguration=systemConfiguration)
+        definitionAndConfigurationUpdate = DefinitionAndConfigurationUpdate()
 
-                # 2) report the status (should be the same message)
-                status = get_initialStatus()
-                definitionAndConfigurationUpdate = DefinitionAndConfigurationUpdate(
-                    systemDefinition=systemDefinition,
-                    systemConfiguration=systemConfiguration)
+        c = time.time()
+        isGood = client.reportStatus(
+            sessionId=session.sessionId,
+            status=status,
+            definitionAndConfigurationUpdate=definitionAndConfigurationUpdate)
+        d = time.time()
+        print('Report Status {}s'.format(d-c))
 
-                isGood = client.reportStatus(
-                    sessionId=session.sessionId,
-                    status=status,
-                    definitionAndConfigurationUpdate=definitionAndConfigurationUpdate)
+        c = time.time()
+        # 3) pushData
+        gammaSpectrumData = get_gammaSpectrumData(db, lasttime)
+        # gammaListData  = get_gammaListData(db)
+        gammaListData = []
+        gammaGrossCountData = get_gammaGrossCountData(db, lasttime)
+        # gammaDoseData = get_gammaDoseData(db)
+        gammaDoseData = []
+        # neutronListData = get_neutronListData(db)
+        neutronListData = []
+        # neutronSpectrumData = get_neutronSpectrumData(db)
+        neutronSpectrumData = []
+        # neutronGrossCountData = get_neutronGrossCountData(db)
+        neutronGrossCountData = []
+        # environmentalData = get_environmentalData(db)
+        environmentalData = []
+        # navigationData = get_navigationData(db)
+        navigationData = []
+        # videoData = get_videoData(db)
+        videoData = []
+        pointCloudData = []
+        voxelData = []
+        meshData = []
+        messages = []
+        waypoints = []
+        boundingboxes = []
+        markers = []
+        algorithmData = []
+        streamIndexData = []
+        configuration = [systemConfiguration]
 
-                if not isGood:
-                    break
-                # 3) pushData
-                gammaSpectrumData = get_gammaSpectrumData(db)
-                # gammaListData  = get_gammaListData(db)
-                gammaListData = []
-                gammaGrossData = get_gammaGrossCountData(db)
-                # gammaDoseData = get_gammaDoseData(db)
-                gammaDoseData = []
-                # neutronListData = get_neutronListData(db)
-                neutronListData = []
-                # neutronSpectrumData = get_neutronSpectrumData(db)
-                neutronSpectrumData = []
-                # neutronGrossCountData = get_neutronGrossCountData(db)
-                neutronGrossCountData = []
-                # environmentalData = get_environmentalData(db)
-                environmentalData = []
-                # navigationData = get_navigationData(db)
-                navigationData = []
-                # videoData = get_videoData(db)
-                videoData = []
-                pointCloudData = []
-                voxelData = []
-                meshData = []
-                messages = []
-                waypoints = []
-                boundingboxes = []
-                markers = []
-                algorithmData = []
-                streamIndexData = []
-                configuration = systemConfiguration
+        dataPayload = DataPayload(
+            unitId=uuid_dict['PTU'],
+            timeStamp=int(time.time() * 1000),
+            systemHealth=Health.Nominal,
+            isEOF=False,
+            # recordingConfig=recordingConfiguration,
+            gammaSpectrumData=gammaSpectrumData,
+            # gammaListData=gammaListData,
+            gammaGrossCountData=gammaGrossCountData)
+            # gammaDoseData=gammaDoseData,
+            # neutronListData=neutronListData,
+            # neutronSpectrumData=neutronSpectrumData,
+            # neutronGrossCountData=neutronGrossCountData,
+            # environmentalData=environmentalData,
+            # navigationData=navigationData,
+            # videoData=videoData,
+            # pointCloudData=pointCloudData,
+            # voxelData=voxelData,
+            # meshData=meshData,
+            # messages=messages,
+            # waypoints=waypoints,
+            # boundingBoxes=boundingboxes,
+            # markers=markers,
+            # algorithmData=algorithmData,
+            # streamIndexData=streamIndexData,
+            # configuration=configuration)
+        d = time.time()
+        print('Payload construction {}s'.format(d-c))
+        c = time.time()
+        isGood = client.pushData(
+            sessionId=session.sessionId,
+            datum=dataPayload,
+            definitionAndConfigurationUpdate=definitionAndConfigurationUpdate)
+        d = time.time()
+        print('Payload delivery {}s'.format(d-c))
+        while not isGood:
+            print('delivery failure')
+            # not sure if sleep is good here. or continuous trying
+            isGood = client.pushData(
+                sessionId=session.sessionId,
+                datum=dataPayload,
+                definitionAndConfigurationUpdate=definitionAndConfigurationUpdate)
 
-                dataPayload = DataPayload(
-                    unitId=uuid_dict['PTU'],
-                    timeStamp=int(time.time() * 1000),
-                    systemHealth=Health(Nominal),
-                    isEOF=False,
-                    recordingConfig=recordingConfiguration,
-                    gammaSpectrumData=gammaSpectrumData,
-                    gammaListData=gammaListData,
-                    gammaGrossCountData=gammaGrossCountData,
-                    gammaDoseData=gammaDoseData,
-                    neutronListData=neutronListData,
-                    neutronSpectrumData=neutronSpectrumData,
-                    neutronGrossCountData=neutronGrossCountData,
-                    environmentalData=environmentalData,
-                    navigationData=navigationData,
-                    videoData=videoData,
-                    pointCloudData=pointCloudData,
-                    voxelData=voxelData,
-                    meshData=meshData,
-                    messages=messages,
-                    waypoints=waypoints,
-                    boundingBoxes=boundingoboxes,
-                    markers=markers,
-                    algorithmData=algorithmData,
-                    streamIndexData=streamIndexData,
-                    configuration=configuration)
-
-                isGood = client.pushData(
-                    sessionId=session.sessionId,
-                    datum=dataPayload,
-                    definitionAndConfigurationUpdate=definitionAndConfigurationUpdate)
-
-                while not isGood:
-                    # not sure if sleep is good here. or continuous trying
-                    time.sleep(0.1)
-                    isGood = client.pushData(
-                        sessionId=session.sessionId,
-                        datum=dataPayload,
-                        definitionAndConfigurationUpdate=definitionAndConfigurationUpdate)
-
-                acks = []
-                # NOTE: No way of handling acks right now.
-                # 4) pushAcknowledgements
-                isGood = client.pushAcknowledgements(
-                    sessionId=session.sessionId,
-                    acknowledgements=acks)
-            juice += [float(charge)]
+        acks = []
+        # NOTE: No way of handling acks right now.
+        # 4) pushAcknowledgements
+        isGood = client.pushAcknowledgements(
+            sessionId=session.sessionId,
+            acknowledgements=acks)
+        b = time.time()
+        print('time elapsed: {}'.format(b-a))
+        lasttime = time.time()
 
 
 
