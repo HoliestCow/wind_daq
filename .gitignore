@@ -1,2 +1,4 @@
-*.thrift
 *.pyc
+*.sqlite3
+*.dat
+*.backup
