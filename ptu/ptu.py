@@ -3,7 +3,8 @@
 import sys
 import glob
 import io
-sys.path.append('./WIND-Thrift/gen-py')
+sys.path.append('/home/cbritt2/wind_daq/WIND-Thrift/gen-py')
+sys.path.append('/home/cbritt2/')  # this is to get the wind_daq. to start working
 
 from csvseeker import CSVSeeker
 
@@ -59,13 +60,13 @@ import datetime as dt
 
 ############ Database Stuff ##############
 
-from thrift_uuid import Thrift_UUID
-from database import DatabaseOperations
+from wind_daq.utils.thrift_uuid import Thrift_UUID
+from wind_daq.utils.database import DatabaseOperations
 import numpy as np
-import catch_measurements
+import wind_daq.ptu.catch_measurements
 
 ######### VN 300 Libraries ##########
-sys.path.append('/home/holiestcow/Documents/winds/thrift/gps/vnproglib-1.1.4.0/python/build/lib.linux-x86_64-3.5')
+sys.path.append('/home/cbritt2/wind_daq/libs/vnproglib-1.1.4.0/python/build/lib.linux-x86_64-3.5')
 from vnpy import *
 
 ##### Other utilities
@@ -188,7 +189,7 @@ class PTU:
                     angle=float(j) / 360.0 * 2 * np.pi,  # This is just a made up number
                     efficiency=float(j) / 360.0)]
             angularEfficiency = AngularEfficiencyDefinition(
-                energy=energy,
+                energy= energy,
                 efficiency=angularEfficiencies)
             angularEfficiencyDefinitions += [angularEfficiency]
 
@@ -649,11 +650,16 @@ class PTU:
         counter = 0
         status = self.get_initialStatus()
 
-        gammaFilenames = [\
-            'det_0.csv',
-            'det_1.csv',
-            'det_2.csv',
-            'det_3.csv']
+        # gammaFilenames = [\
+        #     'det_0.csv',
+        #     'det_1.csv',
+        #     'det_2.csv',
+        #     'det_3.csv']
+        gammaFilenaes = [\
+            '0@DT5720D #2-3-1167_Data_daq_test.csv',
+            '1@DT5720D #2-3-1167_Data_daq_test.csv',
+            '2@DT5720D #2-3-1167_Data_daq_test.csv',
+            '3@DT5720D #2-3-1167_Data_daq_test.csv']
 
         self.initialize_measurement_thread(gammaFilenames)
         # QUESTION: Start threads threads here, they populate self.package.
@@ -728,4 +734,3 @@ def main():
 
 
 main()
-
