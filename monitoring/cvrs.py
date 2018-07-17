@@ -4,8 +4,9 @@ import threading
 ############### CVRS STUFF ###############
 import sys
 import glob
-sys.path.append('./WIND-Thrift/gen-py')
-sys.path.insert(0, '/home/holiestcow/thrift-0.11.0/lib/py/build/lib.linux-x86_64-3.5')
+sys.path.append('/home/holiestcow/Documents/winds/thrift/wind_daq/WIND-Thrift/gen-py')
+# sys.path.append('/home/holiestcow/Documents/winds/thrift')
+# sys.path.insert(0, '/home/holiestcow/thrift-0.11.0/lib/py/build/lib.linux-x86_64-3.5')
 
 # from tutorial import Calculator
 # from tutorial.ttypes import InvalidOperation, Operation, Work
@@ -42,9 +43,10 @@ import datetime as dt
 ############ Database Stuff ##############
 
 # from .thrift_uuid import *
-from database import DatabaseOperations
+from wind_daq.utils.thrift_uuid import Thrift_UUID
+from wind_daq.utils.database import DatabaseOperations
 
-from thrift_uuid import Thrift_UUID
+# from thrift_uuid import Thrift_UUID
 
 
 ########## DONE IMPORTING ################
@@ -257,7 +259,7 @@ def gen_wind_speed(interval):
 
     # total_time = (hour * 3600) + (minute * 60) + (sec)
 
-    con = sqlite3.connect("./data/CVRS_local.sqlite3")
+    con = sqlite3.connect("./CVRS_local.sqlite3")
     # df = pd.read_sql_query('SELECT Speed, SpeedError, Direction from Wind where\
     #                         rowid > "{}" AND rowid <= "{}";'
     #                         .format(total_time-200, total_time), con)
@@ -400,7 +402,7 @@ def gen_wind_histogram(interval, wind_speed_figure, sliderValue, auto_state):
 
     # total_time = (hour * 3600) + (minute * 60) + (sec)
 
-    con = sqlite3.connect("./data/CVRS_local.sqlite3")
+    con = sqlite3.connect("./CVRS_local.sqlite3")
     # df = pd.read_sql_query('SELECT Speed, SpeedError, Direction from Wind where\
     #                         rowid > "{}" AND rowid <= "{}";'
     #                         .format(total_time-200, total_time), con)
@@ -489,7 +491,7 @@ def start_thrift_server():
     handler = CVRSHandler()
     handler._set_database('CVRS_local.sqlite3')
     processor = CVRSServices.CVRSEndpoint.Processor(handler)
-    transport = TSocket.TServerSocket(host='127.0.0.1', port=8080)
+    transport = TSocket.TServerSocket(host='0.0.0.0', port=8080)
     tfactory = TTransport.TBufferedTransportFactory()
     pfactory = TBinaryProtocol.TBinaryProtocolFactory()
 
@@ -505,7 +507,6 @@ def start_webapp_server():
     print('Starting web server.')
     # app.run_server(host='0.0.0.0', debug=True)
     app.run_server(port=9090)
-    print('Web server started.')
     return
 
 

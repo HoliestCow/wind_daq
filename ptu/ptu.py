@@ -4,7 +4,6 @@ import sys
 import glob
 import io
 sys.path.append('./WIND-Thrift/gen-py')
-sys.path.insert(0, '/home/holiestcow/thrift-0.11.0/lib/py/build/lib.linux-x86_64-3.5')
 
 from csvseeker import CSVSeeker
 
