@@ -3,3 +3,4 @@
 *.dat
 *.backup
 *.thrift
+./WIND-Thrift/gen-py/
