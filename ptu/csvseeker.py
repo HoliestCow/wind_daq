@@ -9,9 +9,8 @@ class CSVSeeker:
         self.fh = open(self.filename, 'r', buffering=1)
         self.fh.seek(0, 2)
         self.start_seek = self.fh.tell()
-        self.end_seek = self.current_seek
+        self.end_seek = self.start_seek
         self.file_index = file_index
-        self.database_object = database_object
 
     def closeout(self):
         self.fh.close()

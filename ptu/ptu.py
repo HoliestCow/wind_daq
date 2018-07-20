@@ -4,9 +4,10 @@ import sys
 import glob
 import io
 sys.path.append('/home/cbritt2/wind_daq/WIND-Thrift/gen-py')
-sys.path.append('/home/cbritt2/')  # this is to get the wind_daq. to start working
+sys.path.append('/home/cbritt2/env/wind_daq/lib/python3.5/site-packages')
+# sys.path.append('/home/cbritt2/')  # this is to get the wind_daq. to start working
 
-from csvseeker import CSVSeeker
+from wind_daq.ptu.csvseeker import CSVSeeker
 
 # from CVRSServices.CVRSEndpoint import Client
 # from server import CVRSHandler
@@ -63,7 +64,7 @@ import datetime as dt
 from wind_daq.utils.thrift_uuid import Thrift_UUID
 from wind_daq.utils.database import DatabaseOperations
 import numpy as np
-import wind_daq.ptu.catch_measurements
+# import wind_daq.ptu.catch_measurements
 
 ######### VN 300 Libraries ##########
 sys.path.append('/home/cbritt2/wind_daq/libs/vnproglib-1.1.4.0/python/build/lib.linux-x86_64-3.5')
@@ -96,6 +97,10 @@ class PTU:
         # Initialize UUIDs which should remain constant.
         x = Thrift_UUID.generate_thrift_uuid()
         self.uuid_dict['PTU'] = UUID(
+            leastSignificantBits=x[0],
+            mostSignificantBits=x[1])
+        x = Thrift_UUID.generate_thrift_uuid()
+        self.uuid_dict['GammaDetector'] = UUID(
             leastSignificantBits=x[0],
             mostSignificantBits=x[1])
         x = Thrift_UUID.generate_thrift_uuid()
@@ -161,7 +166,7 @@ class PTU:
             gridPosition=Vector(x=0.0, y=0.0, z=0.0),
             rotation=Quaternion(w=0.0, x=0.0, y=0.0, z=0.0))
 
-        starting_gammaSpectrumConfig = GammaListAndSpectrumConfiguration(
+        gammaSpectrumConfig = GammaListAndSpectrumConfiguration(
             componentId=self.uuid_dict['GammaDetector'],
             settings=sipm_pmtsettings,
             energyCalibration=energyCalibration,
@@ -194,16 +199,15 @@ class PTU:
             angularEfficiencyDefinitions += [angularEfficiency]
 
         self.gammaSpectrumDefinitions = [
-            GammaListAndSpectrumDefinition(
-                component=component,
-                numberOfChannels=1024,
-                physicalDimensions=physicalDimensions,
-                detectorMaterial=detectorMaterial,
-                startingGammaConfiguration=starting_gammaSpectrumConfig,
-                angularEfficiencies=angularEfficiencyDefinitions)
-        ]
+        GammaListAndSpectrumDefinition(
+            component=component,
+            numberOfChannels=1024,
+            physicalDimensions=physicalDimensions,
+            detectorMaterial=detectorMaterial,
+            startingGammaConfiguration=gammaSpectrumConfig,
+            angularEfficiencies=angularEfficiencyDefinitions)]
 
-        self.gammaGrossCountConfiguration = GammaGrossCountConfiguration(
+        gammaGrossCountConfiguration = GammaGrossCountConfiguration(
             componentId=self.uuid_dict['GammaDetector'],
             componentPositionAndOrientation=componentPositionAndOrientation)
 
@@ -212,7 +216,7 @@ class PTU:
                 component=component,
                 physicalDimensions=physicalDimensions,
                 detectorMaterial=detectorMaterial,
-                startingGammaGrossCountConfiguration=starting_gammaGrossCountConfig,
+                startingGammaGrossCountConfiguration=gammaGrossCountConfiguration,
                 angularEfficiencies=angularEfficiencyDefinitions)
         ]
 
@@ -234,7 +238,7 @@ class PTU:
         return
 
     def get_environmentDefinitions(self):
-        environmentalDefinitions = []
+        self.environmentDefinitions = []
 
         component = ComponentDefinition(
             componentId=self.uuid_dict['GPS'],  # GPS has a temperature  sensor. However I'm not sure whether to use it or not.
@@ -257,6 +261,8 @@ class PTU:
 
     def get_navigationDefinitions(self):
 
+        self.navigationDefinitions = []
+
         component = ComponentDefinition(
             componentId=self.uuid_dict['GPS'],
             componentName='VectorNav VN-300-DEV',
@@ -275,7 +281,7 @@ class PTU:
             hasAccelerationY=False,
             hasAccelerationZ=False,
             hasNumberOfSatellites=True,
-            hasQualityOfFix=False
+            hasQualityOfFix=False,
             hasPitch=True,
             hasRoll=True,
             hasHeading=False,  # Actually True, I just don't want to mess with this yet.
@@ -284,7 +290,7 @@ class PTU:
             hasVelocityZ=True,
             hasSpeed=False)
 
-        self.navigationalDefinitions += [
+        self.navigationDefinitions += [
             NavigationSensorDefinition(
                 component=component,
                 navOutputDefinition=navOutputDefinition)]
@@ -293,7 +299,7 @@ class PTU:
     def get_contextVideoDefinitions(self):
         # contextVideoDefinitions = None
         # contextVideoConfigurations = None
-        contextVideoDefinitions = []
+        self.contextVideoDefinitions = []
         component = ComponentDefinition(
             componentId=self.uuid_dict['VideoCamera'],
             componentName='Logitech C615 Webcam',
@@ -310,7 +316,7 @@ class PTU:
             fx=640,
             fy=480)
 
-        contextVideoConfigurations = ContextVideoConfiguration(
+        self.contextVideoConfigurations = ContextVideoConfiguration(
             componentId = self.uuid_dict['VideoConfiguration'],
             fileName='NANI.avi',
             framesPerSecond=30.0,
@@ -324,7 +330,7 @@ class PTU:
             isDeBayered=False,  # Partial colors converted into full colors
             timeStamp=int(time.time() * 1000))
         # # NOTE: there's also "intrinsics" if isRectified is False.
-        contextVideoDefinitions += [
+        self.contextVideoDefinitions += [
             ContextVideoDefinition(
                 component=component,
                 videoConfiguration=contextVideoConfigurations)]
@@ -333,21 +339,20 @@ class PTU:
     def get_systemDefinition(self):
         # Defining systemDefinition
 
-        gammaSpectrumDefinitions, gammaGrossCountDefinitions = \
-            self.get_gammaDefinitions()
-        environmentDefinitions = get_environmentDefinitions()
-        navigationDefinitions = get_navigationDefinitions()
+        self.get_gammaDefinitions()
+        self.get_environmentDefinitions()
+        self.get_navigationDefinitions()
         # contextVideoDefinition = get_contextVideoDefinitions()
 
-        systemDefinition = SystemDefinition(
-            gammaSpectrumDefinitions=gammaSpectrumDefinitions,
-            gammaGrossCountDefinitions=gammaGrossCountDefinitions,
-            environmentalDefinitions=environmentDefinitions,
-            navigationSensorDefinitions=navigationDefinitions,
+        self.systemDefinition = SystemDefinition(
+            gammaSpectrumDefinitions=self.gammaSpectrumDefinitions,
+            gammaGrossCountDefinitions=self.gammaGrossCountDefinitions,
+            environmentalDefinitions=self.environmentDefinitions,
+            navigationSensorDefinitions=self.navigationDefinitions,
             timeStamp=int(time.time() * 1000),
             apiVersion='yolo')
 
-        return systemDefinition
+        return
 
     def construct_configurations(self, x, y):
         out = []
@@ -358,33 +363,33 @@ class PTU:
             out = None
         return out
 
-    def get_systemConfiguration(self, unitDefinition, systemDefinition):
+    def get_systemConfiguration(self):
         gammaSpectrumConfigurations = self.construct_configurations(
-            systemDefinition.gammaSpectrumDefinitions,
+            self.systemDefinition.gammaSpectrumDefinitions,
             'startingGammaConfiguration')
         gammaListConfigurations = self.construct_configurations(
-            systemDefinition.gammaListDefinitions,
+            self.systemDefinition.gammaListDefinitions,
             'startingGammaConfiguration')
         gammaGrossCountConfigurations = self.construct_configurations(
-            systemDefinition.gammaGrossCountDefinitions,
+            self.systemDefinition.gammaGrossCountDefinitions,
             'startingGammaGrossCountConfiguration')
         # gammaDoseConfigurations = construct_configurations(
         #     systemDefinition.gammaDoseDefinitions,
         #     'startingGammaDoseConfiguration')
 
         neutronListConfigurations = self.construct_configurations(
-            systemDefinition.neutronListDefinitions,
+            self.systemDefinition.neutronListDefinitions,
             'startingNeutronListConfiguration')
         neutronSpectrumConfigurations = self.construct_configurations(
-            systemDefinition.neutronSpectrumDefinitions,
+            self.systemDefinition.neutronSpectrumDefinitions,
             'startingNeutronSpectrumConfiguration')
         neutronGrossCountConfigurations = self.construct_configurations(
-            systemDefinition.neutronGrossCountDefinitions,
+            self.systemDefinition.neutronGrossCountDefinitions,
             'startingNeutronGrossCountConfiguration')
 
         # NOTE: Skipping most of the video stuff for now.
         contextVideoConfigurations = self.construct_configurations(
-            systemDefinition.contextVideoDefinitions,
+            self.systemDefinition.contextVideoDefinitions,
             'videoConfiguration')
         # contextPointCloudConfigurations = construct_configurations(
         #     systemDefinition.contextPointCloudDefinitions,
@@ -403,7 +408,7 @@ class PTU:
         #     systemDefinition.contextStreamDefinitions.configuration
 
         self.systemConfiguration = SystemConfiguration(
-            unitId=unitDefinition.unitId,
+            unitId=self.unitDefinition.unitId,
             gammaSpectrumConfigurations=gammaSpectrumConfigurations,
             gammaListConfigurations=gammaListConfigurations,
             gammaGrossCountConfigurations=gammaGrossCountConfigurations,
@@ -432,7 +437,7 @@ class PTU:
         return
 
 
-    def initialize_measurement_thread(self, filenames, outputdbo):
+    def initialize_measurement_thread(self, filenames):
         # This should only be called once.
 
         self.gammaHandling = []
@@ -444,7 +449,8 @@ class PTU:
         # VN-300 stuff
         self.gps = VnSensor()
         print('Connecting to GPS sensor')
-        self.gps.connect('/dev/ttyUSB0', 115200)
+        # self.gps.connect('/dev/ttyUSB0', 115200)  # works on linux
+        self.gps.connect('/dev/ttyS1', 115200)  # ubuntu on windows
         print('Connected to GPS?: ', self.gps.is_connected)
         self.environment_sensor = self.gps
         #######
@@ -612,7 +618,7 @@ class PTU:
     def main_loop(self):
 
         # Make socket
-        transport = TSocket.TSocket('127.0.0.1', 9090)
+        transport = TSocket.TSocket('10.130.130.118', 8080)
 
         # Buffering is critical. Raw sockets are very slow
         transport = TTransport.TBufferedTransport(transport)
@@ -628,38 +634,41 @@ class PTU:
         # Connect!
         transport.open()
 
-        initialize_uuids()
+        self.initialize_uuids()
 
-        unit_definition = get_unitDefinition()
+        unit_definition = self.get_unitDefinition()
         # Initiate handshake
-        session = client.registerPtu(unitDefinition=unit_definition)
+        print('Initiating handhsake')
+        session = client.registerPtu(unitDefinition=self.unitDefinition)
+        print('Shook hands')
         # time.sleep(5)  # this method returns a session class from CVRSServices
 
-        status = get_initialStatus()
-        systemDefinition = get_systemDefinition()
-        systemConfiguration = get_systemConfiguration(unit_definition, systemDefinition)
-        recordingUpdate, recordingConfiguration = get_recordingUpdate()
+        self.get_status()
+        self.get_systemDefinition()
+        self.get_systemConfiguration()
+        self.get_recordingUpdate()
 
-        ptu_message = client.define(session.sessionId, status,
-                                    systemDefinition, systemConfiguration,
-                                    recordingUpdate)
+        ptu_message = client.define(session.sessionId, self.status,
+                                    self.systemDefinition, self.systemConfiguration,
+                                    self.recordingUpdate)
 
         self.db = DatabaseOperations('./PTU_local.sqlite3')
         self.db.initialize_structure(numdetectors=4)
 
         counter = 0
-        status = self.get_initialStatus()
 
         # gammaFilenames = [\
         #     'det_0.csv',
         #     'det_1.csv',
         #     'det_2.csv',
         #     'det_3.csv']
-        gammaFilenaes = [\
-            '0@DT5720D #2-3-1167_Data_daq_test.csv',
-            '1@DT5720D #2-3-1167_Data_daq_test.csv',
-            '2@DT5720D #2-3-1167_Data_daq_test.csv',
-            '3@DT5720D #2-3-1167_Data_daq_test.csv']
+        # dirName = 'C:\\Users\\cbritt2\\Documents\\compass\\daq_test\\DAQ\\daq_test_2\\UNFILTERED\\'
+        dirName = '/mnt/c/Users/cbritt2/Documents/compass/daq_test/DAQ/daq_test_4/UNFILTERED/'
+        gammaFilenames = [\
+            dirName + '0@DT5720D #2-3-1167_Data_daq_test_4.csv',
+            dirName + '1@DT5720D #2-3-1167_Data_daq_test_4.csv',
+            dirName + '2@DT5720D #2-3-1167_Data_daq_test_4.csv',
+            dirName + '3@DT5720D #2-3-1167_Data_daq_test_4.csv']
 
         self.initialize_measurement_thread(gammaFilenames)
         # QUESTION: Start threads threads here, they populate self.package.
