@@ -491,10 +491,12 @@ def start_thrift_server():
     handler = CVRSHandler()
     handler._set_database('CVRS_local.sqlite3')
     processor = CVRSServices.CVRSEndpoint.Processor(handler)
+    # transport = TSocket.TServerSocket(host='192.249.3.246', port=8080)
     transport = TSocket.TServerSocket(host='0.0.0.0', port=8080)
     tfactory = TTransport.TBufferedTransportFactory()
     pfactory = TBinaryProtocol.TBinaryProtocolFactory()
 
+    # server = TServer.TThreadedServer(processor, transport, tfactory, pfactory)
     server = TServer.TSimpleServer(processor, transport, tfactory, pfactory)
 
     print('Starting thrift server.')
@@ -506,7 +508,7 @@ def start_thrift_server():
 def start_webapp_server():
     print('Starting web server.')
     # app.run_server(host='0.0.0.0', debug=True)
-    app.run_server(port=9090)
+    app.run_server(port=9090, debug=False)
     return
 
 
