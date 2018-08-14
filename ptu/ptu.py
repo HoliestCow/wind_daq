@@ -7,7 +7,12 @@ sys.path.append('/home/cbritt2/wind_daq/WIND-Thrift/gen-py')
 sys.path.append('/home/cbritt2/env/wind_daq/lib/python3.5/site-packages')
 # sys.path.append('/home/cbritt2/')  # this is to get the wind_daq. to start working
 
-from wind_daq.ptu.csvseeker import CSVSeeker
+# from csvseeker import CSVSeeker
+
+# for getting data out of the CAEN digitizer
+import ctypes
+sys.path.append('/home/holiestcow/Documents/winds/thrift/wind_daq/libs/ptu/carlReadout/')
+import caenlib
 
 # from CVRSServices.CVRSEndpoint import Client
 # from server import CVRSHandler
@@ -436,29 +441,32 @@ class PTU:
         self.recordingUpdate = RecordingUpdate(recordingConfig=self.recordingConfig)
         return
 
+    def caenlib_spool(self):
+        num_caen_channels = 1
+        num_channels = 4096
 
-    def initialize_measurement_thread(self, filenames):
-        # This should only be called once.
+        self.gammaHandlingState = np.array([0], dtype=np.int)
+        self.gammaHandlingShortData = np.zeros((num_caen_channels, num_channels), dtype=np.uint32)
+        self.gammaHandlingLongData = np.zeros((num_caen_channels, num_channels), dtype=np.uint32)
 
-        self.gammaHandling = []
-        self.threads = []
-        for i in range(len(filenames)):
-            self.gammaHandling += [CSVSeeker(filenames[i], i)]
-
-        # Initialize the GPS handler and the video handler here.
-        # VN-300 stuff
-        self.gps = VnSensor()
-        print('Connecting to GPS sensor')
-        # self.gps.connect('/dev/ttyUSB0', 115200)  # works on linux
-        self.gps.connect('/dev/ttyS1', 115200)  # ubuntu on windows
-        print('Connected to GPS?: ', self.gps.is_connected)
-        self.environment_sensor = self.gps
-        #######
-
-        # initialize the payload
-        self.payload = []
-        return
-
+        # Here we make the cfunction call to sit on a single threadself.
+        # The only input is a pointer to the integer which describes what state we'd like the thread to be in.
+        #input:
+        # state.
+            # 0 = idle
+            # 1 = start acquisition
+            # 2 = stop acquisition
+            # 3 = cleanup and jump out of the code.
+        self.thread = threading.Thread(target=caenlib.measurement_spool,
+                                       args=(self.gammaHandlingState,
+                                             self.gammaHandlingShortData,
+                                             self.gammaHandlingLongData,
+                                             self.gammaHandlingShortData.size),
+                                       name='caenlib_spool')
+        self.thread.start()
+        # t1.join()
+        # NOTE: Have to test by setting self.gammaHandlingState to not zero and check in C.
+        # Make sure it's reading from the pointer directly in each loop.
 
     def measurement_spool(self):
         time.sleep(1)
@@ -477,7 +485,9 @@ class PTU:
         gammaSpectrumData = []
         gammaGrossCountData = []
         for i in range(len(self.gammaHandling)):
-            snapshot = self.gammaHandling[i].get_updates()
+            # NOTE: I have to figure out how this exactly works. And surely there's a step to convert long and short charge integrations into energy deposited. But I'm not sure how this is supposed to work. More testing :/
+
+            # snapshot = self.gammaHandling[i].get_updates()
             # gammaSpec += [snapshot]
             # gammaCounts += [np.sum(snapshots)]
             intSpectrum = [int(x) for x in snapshot]
@@ -657,6 +667,7 @@ class PTU:
 
         counter = 0
 
+<<<<<<< 0c6a31236768098b7f6e946f106d5d49398f5bd4
         # gammaFilenames = [\
         #     'det_0.csv',
         #     'det_1.csv',
@@ -671,62 +682,71 @@ class PTU:
             dirName + '3@DT5720D #2-3-1167_Data_daq_test_4.csv']
 
         self.initialize_measurement_thread(gammaFilenames)
+=======
+        # self.initialize_measurement_thread(gammaFilenames)
+>>>>>>> Beginning to implement the CAENlibs. No testing done. This is stupid broken.
         # QUESTION: Start threads threads here, they populate self.package.
         # self.spool_measurement_thread()
         # NOTE: I may have to de classify spool_measurement_thread, why may be tricky since it needs the self.payload attribute.
-        self.thread = Thread(target=self.measurement_spool,
-                             name='measurement_packaging')
-        self.thread.start()
+        # self.thread = Thread(target=self.measurement_spool,
+        #                      name='measurement_packaging')
+        # self.thread.start()
+
+        self.caenlib_spool()
+        self.gammaHandlingState = 1  # start acquisition.
 
         while True:
-            # NOTE: There should be a sleep for one second for each independent process.
-            time.sleep(1.0)  # Sleep for one second
-            a = time.time()
-            # 1) Look for  file changes and dump to the database
-            # 2) report the status (should be the same message)
-            # definitionAndConfigurationUpdate = DefinitionAndConfigurationUpdate(
-            #     systemDefinition=systemDefinition,
-            #     systemConfiguration=systemConfiguration)
-            definitionAndConfigurationUpdate = DefinitionAndConfigurationUpdate()
+            try:
+                # NOTE: There should be a sleep for one second for each independent process.
+                time.sleep(1.0)  # Sleep for one second
+                a = time.time()
+                # 1) Look for  file changes and dump to the database
+                # 2) report the status (should be the same message)
+                # definitionAndConfigurationUpdate = DefinitionAndConfigurationUpdate(
+                #     systemDefinition=systemDefinition,
+                #     systemConfiguration=systemConfiguration)
+                definitionAndConfigurationUpdate = DefinitionAndConfigurationUpdate()
 
-            c = time.time()
-            isGood = client.reportStatus(
-                sessionId=session.sessionId,
-                status=status,
-                definitionAndConfigurationUpdate=definitionAndConfigurationUpdate)
-            d = time.time()
-            print('Report Status {}s'.format(d - c))
+                c = time.time()
+                isGood = client.reportStatus(
+                    sessionId=session.sessionId,
+                    status=status,
+                    definitionAndConfigurationUpdate=definitionAndConfigurationUpdate)
+                d = time.time()
+                print('Report Status {}s'.format(d - c))
 
-            isGood = client.pushData(
-                sessionId=session.sessionId,
-                datum=self.payload,
-                definitionAndConfigurationUpdate=definitionAndConfigurationUpdate)
-            d = time.time()
-            print('Payload delivery {}s'.format(d-c))
-            while not isGood:
-                print('delivery failure')
-                # not sure if sleep is good here. or continuous trying
                 isGood = client.pushData(
                     sessionId=session.sessionId,
                     datum=self.payload,
                     definitionAndConfigurationUpdate=definitionAndConfigurationUpdate)
+                d = time.time()
+                print('Payload delivery {}s'.format(d-c))
+                while not isGood:
+                    print('delivery failure')
+                    # not sure if sleep is good here. or continuous trying
+                    isGood = client.pushData(
+                        sessionId=session.sessionId,
+                        datum=self.payload,
+                        definitionAndConfigurationUpdate=definitionAndConfigurationUpdate)
 
-            # QUESTION: Write everytime I stack into PTU Local? Or write everytime I push?
+                # QUESTION: Write everytime I stack into PTU Local? Or write everytime I push?
 
-            # Empty the payload buffer
-            self.payload = []
+                # Empty the payload buffer
+                self.payload = []
 
-            acks = []
-            # NOTE: No way of handling acks right now.
-            # 4) pushAcknowledgements
-            isGood = client.pushAcknowledgements(
-                sessionId=session.sessionId,
-                acknowledgements=acks)
-            b = time.time()
-            print('time elapsed: {}'.format(b-a))
-            lasttime = time.time()
-
-
+                acks = []
+                # NOTE: No way of handling acks right now.
+                # 4) pushAcknowledgements
+                isGood = client.pushAcknowledgements(
+                    sessionId=session.sessionId,
+                    acknowledgements=acks)
+                b = time.time()
+                print('time elapsed: {}'.format(b-a))
+                lasttime = time.time()
+            except:
+                # in case of  error.
+                # get the  caenlib to clean up and free up memory.
+                self.gammaHandlingState = 3
 
         # NOTE: Frankly I should never get to the close, since I'll be infinitely looping
         transport.close()
