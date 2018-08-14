@@ -1,0 +1,10 @@
+
+NOTE:
+
+the makefile was included in the orginal stuff I pulled from.
+
+What you need to do is do the python setup.py build, python setup.py install, to create the .so file.
+
+the wrapper basically interacts solely with the .so file.
+
+
