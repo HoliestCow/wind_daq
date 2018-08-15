@@ -44,11 +44,12 @@ from NavigationSensor.ttypes import (NavigationOutputDefinition,
                                      GeodeticDatum)
 from Navigation.ttypes import(Waypoint, Location)
 from EnvironmentalSensor.ttypes import (EnvironmentalTypes,
-                                        EnvironmentalSensorDefinition)
+                                        EnvironmentalSensorDefinition,
+                                        EnvironmentalSensorData)
 from ContextSensor.ttypes import (ContextVideoConfiguration,
                                   ContextVideoDefinition,
                                   CameraIntrinsics)
-from Spectrum.ttypes import (SpectrumResult, Spectrum, DoubleSpectrum,
+from Spectrum.ttypes import (SpectrumResult, Spectrum,
                              SpectrumFormat)
 from Health.ttypes import (Health)
 
@@ -144,6 +145,8 @@ class PTU:
         return
 
     def get_gammaDefinitions(self):
+        self.numEnergyChannels = 4096
+
         sipmsettings = SIPMSettings(highVoltage=0.0)
         pmtsettings = PMTSettings(
             highVoltage=0.0,
@@ -156,7 +159,7 @@ class PTU:
 
         energyCalibration = []
         energyResolution = []
-        dE = 3000 / 1024
+        dE = 3000 / self.numEnergyChannels
         constantEnergyResolution = 0.1
         for i in range(0, 1024):
             x = EnergyCalibration(channel=i,
@@ -457,13 +460,13 @@ class PTU:
             # 1 = start acquisition
             # 2 = stop acquisition
             # 3 = cleanup and jump out of the code.
-        self.thread = threading.Thread(target=caenlib.measurement_spool,
-                                       args=(self.gammaHandlingState,
-                                             self.gammaHandlingShortData,
-                                             self.gammaHandlingLongData,
-                                             self.gammaHandlingShortData.size),
-                                       name='caenlib_spool')
-        self.thread.start()
+        self.caenlib_thread = Thread(target=caenlib.measurement_spool,
+                                     args=(self.gammaHandlingState,
+                                           self.gammaHandlingShortData,
+                                           self.gammaHandlingLongData,
+                                           self.gammaHandlingShortData.size),
+                                     name='caenlib_spool')
+        self.caenlib_thread.start()
         # t1.join()
         # NOTE: Have to test by setting self.gammaHandlingState to not zero and check in C.
         # Make sure it's reading from the pointer directly in each loop.
@@ -485,15 +488,20 @@ class PTU:
         gammaSpectrumData = []
         gammaGrossCountData = []
         # for i in range(len(self.gammaHandling)):
-        for i in range(self.gammaHandlingShortData.shape[0]):
+        for i in range(self.gammaHandlingShortData.shape[1]):
             # NOTE: I have to figure out how this exactly works. And surely there's a step to convert long and short charge integrations into energy deposited. But I'm not sure how this is supposed to work. More testing :/
 
+            timestamp = time.time()
+
+            # NOTE: why do I do this??
+            #############################################
             # snapshot = self.gammaHandling[i].get_updates()
-            gammaSpec += [self.gammaHandlingLongData]
-            gammaCounts += [np.sum(self.gammaHandlingLongData)]
+            # gammaSpec += [self.gammaHandlingLongData]
+            # gammaCounts += [np.sum(self.gammaHandlingLongData)]
             # gammaSpec += [snapshot]
             # gammaCounts += [np.sum(snapshots)]
-            intSpectrum = [int(x) for x in snapshot]
+            #############################################
+            intSpectrum = [int(x) for x in self.gammaHandlingLongData[:, i]]
             integerSpectrum = Spectrum(
                 spectrumInt=intSpectrum,
                 format=SpectrumFormat.ARRAY,
@@ -510,7 +518,7 @@ class PTU:
                 spectrum=spectrumResult,
                 liveTime=livetime,
                 realTime=realtime)]
-            gammaGrossCrossData += [GammaGrossCountData(
+            gammaGrossCountData += [GammaGrossCountData(
                 componentId=self.uuid_dict['GammaDetector'],
                 timeStamp=int(time.time()),
                 health=Health.Nominal,
@@ -631,13 +639,13 @@ class PTU:
     def main_loop(self):
 
         # Make socket
-        transport = TSocket.TSocket('10.130.130.118', 8080)
+        self.transport = TSocket.TSocket('10.130.130.118', 8080)
 
         # Buffering is critical. Raw sockets are very slow
-        transport = TTransport.TBufferedTransport(transport)
+        self.transport = TTransport.TBufferedTransport(self.transport)
 
         # Wrap in a protocol
-        protocol = TBinaryProtocol.TBinaryProtocol(transport)
+        protocol = TBinaryProtocol.TBinaryProtocol(self.transport)
 
         # Create a client to use the protocol encoder
         # client = CVRSHandler.Client(protocol)
@@ -645,7 +653,7 @@ class PTU:
         client = CVRSServices.CVRSEndpoint.Client(protocol)
 
         # Connect!
-        transport.open()
+        self.transport.open()
 
         self.initialize_uuids()
 
@@ -679,64 +687,77 @@ class PTU:
         # self.thread.start()
 
         self.caenlib_spool()
-        self.gammaHandlingState = 1  # start acquisition.
+        self.gammaHandlingState = 1  # start acquisition. on the clib side
+
+        self.payload_thread = Thread(target=self.measurement_spool,
+                                     name='payload_spool')
+        self.payload_thread.start()
+
 
         while True:
-            try:
-                # NOTE: There should be a sleep for one second for each independent process.
-                time.sleep(1.0)  # Sleep for one second
-                a = time.time()
-                # 1) Look for  file changes and dump to the database
-                # 2) report the status (should be the same message)
-                # definitionAndConfigurationUpdate = DefinitionAndConfigurationUpdate(
-                #     systemDefinition=systemDefinition,
-                #     systemConfiguration=systemConfiguration)
-                definitionAndConfigurationUpdate = DefinitionAndConfigurationUpdate()
+            # NOTE: There should be a sleep for one second for each independent process.
+            time.sleep(1.0)  # Sleep for one second
+            a = time.time()
+            # 1) Look for  file changes and dump to the database
+            # 2) report the status (should be the same message)
+            # definitionAndConfigurationUpdate = DefinitionAndConfigurationUpdate(
+            #     systemDefinition=systemDefinition,
+            #     systemConfiguration=systemConfiguration)
+            definitionAndConfigurationUpdate = DefinitionAndConfigurationUpdate()
 
-                c = time.time()
-                isGood = client.reportStatus(
-                    sessionId=session.sessionId,
-                    status=status,
-                    definitionAndConfigurationUpdate=definitionAndConfigurationUpdate)
-                d = time.time()
-                print('Report Status {}s'.format(d - c))
+            c = time.time()
+            isGood = client.reportStatus(
+                sessionId=session.sessionId,
+                status=status,
+                definitionAndConfigurationUpdate=definitionAndConfigurationUpdate)
+            d = time.time()
+            print('Report Status {}s'.format(d - c))
 
+            isGood = client.pushData(
+                sessionId=session.sessionId,
+                datum=self.payload,
+                definitionAndConfigurationUpdate=definitionAndConfigurationUpdate)
+            d = time.time()
+            print('Payload delivery {}s'.format(d - c))
+            while not isGood:
+                print('delivery failure')
+                # not sure if sleep is good here. or continuous trying
                 isGood = client.pushData(
                     sessionId=session.sessionId,
                     datum=self.payload,
                     definitionAndConfigurationUpdate=definitionAndConfigurationUpdate)
-                d = time.time()
-                print('Payload delivery {}s'.format(d-c))
-                while not isGood:
-                    print('delivery failure')
-                    # not sure if sleep is good here. or continuous trying
-                    isGood = client.pushData(
-                        sessionId=session.sessionId,
-                        datum=self.payload,
-                        definitionAndConfigurationUpdate=definitionAndConfigurationUpdate)
 
-                # QUESTION: Write everytime I stack into PTU Local? Or write everytime I push?
+            # QUESTION: Write everytime I stack into PTU Local? Or write everytime I push?
 
-                # Empty the payload buffer
-                self.payload = []
+            # Empty the payload buffer
+            self.payload = []
 
-                acks = []
-                # NOTE: No way of handling acks right now.
-                # 4) pushAcknowledgements
-                isGood = client.pushAcknowledgements(
-                    sessionId=session.sessionId,
-                    acknowledgements=acks)
-                b = time.time()
-                print('time elapsed: {}'.format(b-a))
-                lasttime = time.time()
-            except:
-                # in case of  error.
-                # get the  caenlib to clean up and free up memory.
-                self.gammaHandlingState = 3
+            acks = []
+            # NOTE: No way of handling acks right now.
+            # 4) pushAcknowledgements
+            isGood = client.pushAcknowledgements(
+                sessionId=session.sessionId,
+                acknowledgements=acks)
+            b = time.time()
+            print('time elapsed: {}'.format(b-a))
+            lasttime = time.time()
+
 
         # NOTE: Frankly I should never get to the close, since I'll be infinitely looping
-        transport.close()
+        self.transport.close()
         return
+
+
+def ptu_cleanup(ptu_object):
+    ptu_object.gammaHandlingState = 3
+    time.sleep(1)  # wait for the cleanup to happen
+    ptu_object.payload_thread.join()
+    time.sleep(1)  # wait for the cleanup to happen
+    ptu_object.caenlib_thread.join()
+    time.sleep(1)
+    ptu_object.transport.close()
+    time.sleep(1)
+    return
 
 
 def main():
@@ -745,6 +766,14 @@ def main():
         ptu.main_loop()
     except Thrift.TException as tx:  # catch the thrift exceptions
         print('%s' % tx.message)
+        # in case of  error.
+        # initiate clean up and free up memory.
+        ptu_cleanup(ptu)
+    except:
+        # in  case of some other error, make sure cleanup happens.
+        # initiate clean up and free up memory.
+        # transport.close()  # close socket.
+        ptu_cleanup(ptu)
     return
 
 
