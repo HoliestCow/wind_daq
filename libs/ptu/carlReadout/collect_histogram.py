@@ -4,6 +4,7 @@ from caenlib import measurement_spool
 import threading
 import time
 
+
 def main():
 
     measurement_time = 60  # 60 seconds.
@@ -16,7 +17,7 @@ def main():
     t1 = threading.Thread(target=measurement_spool,
                           args=(state, short_data, long_data, short_data.size))
     t1.start()
-    time.sleep(60)
+    time.sleep(measurement_time)
     state[0] = 0
     print('stopping measurement from python')
     t1.join()
