@@ -484,10 +484,13 @@ class PTU:
         realtime = 1.0  # HACK
         gammaSpectrumData = []
         gammaGrossCountData = []
-        for i in range(len(self.gammaHandling)):
+        # for i in range(len(self.gammaHandling)):
+        for i in range(self.gammaHandlingShortData.shape[0]):
             # NOTE: I have to figure out how this exactly works. And surely there's a step to convert long and short charge integrations into energy deposited. But I'm not sure how this is supposed to work. More testing :/
 
             # snapshot = self.gammaHandling[i].get_updates()
+            gammaSpec += [self.gammaHandlingLongData]
+            gammaCounts += [np.sum(self.gammaHandlingLongData)]
             # gammaSpec += [snapshot]
             # gammaCounts += [np.sum(snapshots)]
             intSpectrum = [int(x) for x in snapshot]
@@ -667,24 +670,7 @@ class PTU:
 
         counter = 0
 
-<<<<<<< 0c6a31236768098b7f6e946f106d5d49398f5bd4
-        # gammaFilenames = [\
-        #     'det_0.csv',
-        #     'det_1.csv',
-        #     'det_2.csv',
-        #     'det_3.csv']
-        # dirName = 'C:\\Users\\cbritt2\\Documents\\compass\\daq_test\\DAQ\\daq_test_2\\UNFILTERED\\'
-        dirName = '/mnt/c/Users/cbritt2/Documents/compass/daq_test/DAQ/daq_test_4/UNFILTERED/'
-        gammaFilenames = [\
-            dirName + '0@DT5720D #2-3-1167_Data_daq_test_4.csv',
-            dirName + '1@DT5720D #2-3-1167_Data_daq_test_4.csv',
-            dirName + '2@DT5720D #2-3-1167_Data_daq_test_4.csv',
-            dirName + '3@DT5720D #2-3-1167_Data_daq_test_4.csv']
-
-        self.initialize_measurement_thread(gammaFilenames)
-=======
         # self.initialize_measurement_thread(gammaFilenames)
->>>>>>> Beginning to implement the CAENlibs. No testing done. This is stupid broken.
         # QUESTION: Start threads threads here, they populate self.package.
         # self.spool_measurement_thread()
         # NOTE: I may have to de classify spool_measurement_thread, why may be tricky since it needs the self.payload attribute.
