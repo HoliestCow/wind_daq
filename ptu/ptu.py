@@ -1,17 +1,20 @@
 
 ############### PTU STUFF ###############
 import sys
-import glob
-import io
-sys.path.append('/home/cbritt2/wind_daq/WIND-Thrift/gen-py')
-sys.path.append('/home/cbritt2/env/wind_daq/lib/python3.5/site-packages')
+# sys.path.append('/home/cbritt2/wind_daq/WIND-Thrift/gen-py')
+# sys.path.append('/home/cbritt2/')
+# sys.path.append('/home/cbritt2/env/wind_daq/lib/python3.5/site-packages')
+sys.path.append('/home/holiestcow/Documents/winds/thrift/')
+sys.path.append('/home/holiestcow/Documents/winds/thrift/wind_daq/WIND-Thrift/gen-py/')
+sys.path.append('/home/holiestcow/Documents/winds/thrift/wind_daq/libs/ptu/carlReadout/')
+sys.path.append('/home/holiestcow/Documents/winds/thrift/wind_daq/libs/vectornav/lib.linux-x86_64-3.5/')
+
 # sys.path.append('/home/cbritt2/')  # this is to get the wind_daq. to start working
 
 # from csvseeker import CSVSeeker
 
 # for getting data out of the CAEN digitizer
 import ctypes
-sys.path.append('/home/holiestcow/Documents/winds/thrift/wind_daq/libs/ptu/carlReadout/')
 import caenlib
 
 # from CVRSServices.CVRSEndpoint import Client
@@ -448,7 +451,7 @@ class PTU:
         num_caen_channels = 1
         num_channels = 4096
 
-        self.gammaHandlingState = np.array([0], dtype=np.int)
+        self.gammaHandlingState = np.array([0], dtype=np.int32)
         self.gammaHandlingShortData = np.zeros((num_caen_channels, num_channels), dtype=np.uint32)
         self.gammaHandlingLongData = np.zeros((num_caen_channels, num_channels), dtype=np.uint32)
 
@@ -464,7 +467,8 @@ class PTU:
                                      args=(self.gammaHandlingState,
                                            self.gammaHandlingShortData,
                                            self.gammaHandlingLongData,
-                                           self.gammaHandlingShortData.size),
+                                           self.gammaHandlingShortData.size,
+                                           self.gammaHandlingShortData.shape),
                                      name='caenlib_spool')
         self.caenlib_thread.start()
         # t1.join()
@@ -540,9 +544,9 @@ class PTU:
         neutronSpectrumData = []
         # neutronGrossCountData = get_neutronGrossCountData(db)
         neutronGrossCountData = []
-        navigationData = self.get_navigationData()  # GPS data
+        # navigationData = self.get_navigationData()  # GPS data
         # navigationData = []
-        environmentalData = self.get_environmentalData()  # Temperature and pressure data from the GPS module
+        # environmentalData = self.get_environmentalData()  # Temperature and pressure data from the GPS module
         # environmentalData = []
         # videoData = get_videoData(db)  # Let's, leave this for now I think.
         videoData = []
@@ -555,7 +559,7 @@ class PTU:
         markers = []
         algorithmData = []
         streamIndexData = []
-        configuration = [systemConfiguration]
+        configuration = [self.systemConfiguration]
 
         dataPayload = DataPayload(
             unitId=self.uuid_dict['PTU'],
@@ -565,13 +569,13 @@ class PTU:
             # recordingConfig=recordingConfiguration,
             gammaSpectrumData=gammaSpectrumData,
             # gammaListData=gammaListData,
-            gammaGrossCountData=gammaGrossCountData,
+            gammaGrossCountData=gammaGrossCountData)
             # gammaDoseData=gammaDoseData,
             # neutronListData=neutronListData,
             # neutronSpectrumData=neutronSpectrumData,
             # neutronGrossCountData=neutronGrossCountData,
-            environmentalData=environmentalData,
-            navigationData=navigationData)
+            # environmentalData=environmentalData,
+            # navigationData=navigationData)
             # videoData=videoData,
             # pointCloudData=pointCloudData,
             # voxelData=voxelData,
@@ -636,6 +640,9 @@ class PTU:
 
         return data
 
+    # def start_gps(self):
+    #     self.gps =
+
     def main_loop(self):
 
         # Make socket
@@ -686,12 +693,17 @@ class PTU:
         #                      name='measurement_packaging')
         # self.thread.start()
 
+        # starting gamma sensor services.
+        self.payload = []
         self.caenlib_spool()
         self.gammaHandlingState = 1  # start acquisition. on the clib side
 
         self.payload_thread = Thread(target=self.measurement_spool,
                                      name='payload_spool')
         self.payload_thread.start()
+
+        # starting navigation services.
+        # self.start_gps()
 
 
         while True:
