@@ -25,5 +25,5 @@
 #endif
 
 void spool_measurement(int * state);
-void zeroOut(uint32_t *Hist[MAXNB][MaxNChannels]);
+void zeroOut(uint32_t * Hist[MaxNChannels], size_t shape);
 int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PSD_Params_t DPPParams);

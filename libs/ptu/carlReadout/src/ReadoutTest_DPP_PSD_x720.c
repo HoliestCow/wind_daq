@@ -24,7 +24,7 @@
 #define MAXNB   1
 // NB: the following define MUST specify the ACTUAL max allowed number of board's channels
 // it is needed for consistency inside the CAENDigitizer's functions used to allocate the memory
-#define MaxNChannels 8
+#define MaxNChannels 4
 
 #define MAXNBITS 12
 
@@ -175,9 +175,12 @@ int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PSD_Par
 }
 
 
-void zeroOut(uint32_t *Hist[MaxNChannels]) {
+void zeroOut(uint32_t **Hist, size_t size) {
     for (int j = 0; j < MaxNChannels; j++) {
-        memset(Hist[j], 0, (1<<MAXNBITS)*sizeof(uint32_t));
+        for (int k = 0; k < size; k++) {
+            // memset(Hist[j], 0, (1<<MAXNBITS)*sizeof(uint32_t));
+            Hist[j][k] = 0;
+        }
     }
 }
 
@@ -186,7 +189,7 @@ void zeroOut(uint32_t *Hist[MaxNChannels]) {
 /* MAIN                                                                        */
 /* ########################################################################### */
 // int main(int argc, char *argv[])
-void measurement_spool(int * state, uint32_t ** EHistoShort, uint32_t ** EHistoLong, size_t shape)
+void measurement_spool(int * state, uint32_t **EHistoShort, uint32_t **EHistoLong, size_t shape)
 {
     /* The following variable is the type returned from most of CAENDigitizer
     library functions and is used to check if there was an error in function
@@ -411,8 +414,8 @@ void measurement_spool(int * state, uint32_t ** EHistoShort, uint32_t ** EHistoL
         PrevTime[ch] = 0;
         ExtendedTT[ch] = 0;
     }
-    zeroOut(EHistoShort);
-    zeroOut(EHistoLong);
+    zeroOut(EHistoShort, shape);
+    zeroOut(EHistoLong, shape);
     PrevRateTime = get_time();
     AcqRun = 0;
     // PrintInterface();
@@ -526,6 +529,13 @@ void measurement_spool(int * state, uint32_t ** EHistoShort, uint32_t ** EHistoL
         goto QuitProgram;
     }
 
+    if (ElapsedTime > 1000) {
+        // SaveHistogram("HistoShort", b, ch, EHistoShort[ch]);
+        // SaveHistogram("HistoLong", b, ch, EHistoShort[ch]);
+        zeroOut(EHistoShort, shape);
+        zeroOut(EHistoLong, shape);
+    }
+
     /* Analyze data */
     for(ch=0; ch<MaxNChannels; ch++) {
         if (!(Params.ChannelMask & (1<<ch)))
@@ -544,16 +554,10 @@ void measurement_spool(int * state, uint32_t ** EHistoShort, uint32_t ** EHistoL
                 // HACK: I had to change the way I did this because I allocate memory from python and C's job is to just fill the arrays. Still need to test whether or not this is how this stuff should work.
                 // EHistoShort[ch][(Events[ch][ev].ChargeShort) & BitMask]++;
                 // EHistoLong[ch][(Events[ch][ev].ChargeLong) & BitMask]++;
+                // printf("%d\n", Events[ch][ev].ChargeShort);
                 EHistoShort[ch][Events[ch][ev].ChargeShort]++;
                 EHistoLong[ch][Events[ch][ev].ChargeLong]++;
                 ECnt[ch]++;
-            }
-
-            if (ElapsedTime > 1000) {
-                // SaveHistogram("HistoShort", b, ch, EHistoShort[ch]);
-                // SaveHistogram("HistoLong", b, ch, EHistoShort[ch]);
-                zeroOut(EHistoShort);
-                zeroOut(EHistoLong);
             }
 
             /* Get Waveforms (only from 1st event in the buffer) */
@@ -596,17 +600,18 @@ void measurement_spool(int * state, uint32_t ** EHistoShort, uint32_t ** EHistoL
 QuitProgram:
     /* stop the acquisition, close the device and free the buffers */
     CAEN_DGTZ_SWStopAcquisition(handle);
-    CAEN_DGTZ_CloseDigitizer(handle);
-    for (ch=0; ch<MaxNChannels; ch++) {
-        free(EHistoShort[ch]);
-        free(EHistoLong[ch]);
-        // free(EHistoRatio[ch]);
-    }
+    // CAEN_DGTZ_CloseDigitizer(handle);
+    // for (ch=0; ch<MaxNChannels; ch++) {
+    //     free(EHistoShort[ch]);
+    //     free(EHistoLong[ch]);
+    //     // free(EHistoRatio[ch]);
+    // }
     CAEN_DGTZ_FreeReadoutBuffer(&buffer);
     CAEN_DGTZ_FreeDPPEvents(handle, Events);
     CAEN_DGTZ_FreeDPPWaveforms(handle, Waveform);
-	printf("Press 'Enter' key to exit\n");
-	c = getchar();
+	// printf("Press 'Enter' key to exit\n");
+    printf("Exiting Caenlib\n");
+	// c = getchar();
 	// return 0;
     // return ret;
     return;
