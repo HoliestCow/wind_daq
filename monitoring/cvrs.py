@@ -43,6 +43,7 @@ import datetime as dt
 ############ Database Stuff ##############
 
 # from .thrift_uuid import *
+sys.path.append('/home/holiestcow/Documents/winds/thrift/')
 from wind_daq.utils.thrift_uuid import Thrift_UUID
 from wind_daq.utils.database import DatabaseOperations
 
