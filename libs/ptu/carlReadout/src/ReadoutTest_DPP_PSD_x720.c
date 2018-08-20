@@ -427,7 +427,10 @@ void measurement_spool(int * state, uint32_t **EHistoShort, uint32_t **EHistoLon
     printf("Acquisition Started for Board %d\n", b);
 
     // char c;
+
+    printf("Starting the main loop\n");
     while(!Quit) {
+
         // state:
         //     0 = idle
         //     1 = start acquisition
@@ -485,7 +488,7 @@ void measurement_spool(int * state, uint32_t **EHistoShort, uint32_t **EHistoLon
         }
         // }  // if kbhit()
         if (!AcqRun) {
-            sleep(10);
+            sleep(1);
             continue;
         }
 
@@ -529,11 +532,16 @@ void measurement_spool(int * state, uint32_t **EHistoShort, uint32_t **EHistoLon
         goto QuitProgram;
     }
 
+    printf("looping.\n");
+
     if (ElapsedTime > 1000) {
         // SaveHistogram("HistoShort", b, ch, EHistoShort[ch]);
         // SaveHistogram("HistoLong", b, ch, EHistoShort[ch]);
+        printf("Before.\n");
         zeroOut(EHistoShort, shape);
         zeroOut(EHistoLong, shape);
+        printf("After.\n");
+        PrevRateTime = CurrentTime;
     }
 
     /* Analyze data */
@@ -596,7 +604,7 @@ void measurement_spool(int * state, uint32_t **EHistoShort, uint32_t **EHistoLon
             } // loop on events
         } // loop on channels
     } // End of readout loop  This is from the while(!Quit)
-
+printf("Quitting Caenlib\n");
 QuitProgram:
     /* stop the acquisition, close the device and free the buffers */
     CAEN_DGTZ_SWStopAcquisition(handle);

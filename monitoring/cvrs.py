@@ -1,6 +1,7 @@
 
 
 import threading
+import time
 ############### CVRS STUFF ###############
 import sys
 import glob
@@ -159,10 +160,11 @@ class CVRSHandler(Iface):
         # Returns:
   #  	 		bool: true if the acnowledgements were successfully received; false otherwise.
   #  				  If the value is false, the PTU MUST re-send this list of acknowledgements again.
-        print(datum)
         if sessionId == self.current_sessionId:
+            print('here')
             # Use private methods to store data into a local  SQL database
-            self.db.stack_datum(datum, definitionAndConfigurationUpdate.systemConfiguration)
+            # self.db.stack_datum(datum, definitionAndConfigurationUpdate.systemConfiguration)
+            self.db.stack_datum(datum)
 
             # append datum to data
             # NOTE: This is a list of objects. I probably want to construct this differently.
@@ -173,6 +175,7 @@ class CVRSHandler(Iface):
             #     definitionAndConfigurationUpdate.systemConfiguration
             return [True]
         else:
+            print('This  is gonna fail me hard.')
             message = 'PTU Session ID {} does not match current session ID {}'.format(sessionId,
                 self.current_sessionId)
             raise InvalidSession(sessionId=sessionId, message=message)
@@ -514,11 +517,11 @@ def start_webapp_server():
 
 
 if __name__ == '__main__':
-    thrift_thread = threading.Thread(target=start_thrift_server)
+    # thrift_thread = threading.Thread(target=start_thrift_server)
     # webapp_thread = threading.Thread(target=start_webapp_server)
 
-    thrift_thread.start()
+    # thrift_thread.start()
     # webapp_thread.start()
-    # start_thrift_server()
-    start_webapp_server()
+    start_thrift_server()
+    # start_webapp_server()
 # main()

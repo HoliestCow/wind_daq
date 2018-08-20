@@ -30,12 +30,18 @@ class DatabaseOperations(object):
 
     def stack_datum(self, datum):
         print('stacking datum')
-        if datum.gammaSpectrumData is None:
+        if datum is None:
             print('no data')
+            return
+        # if datum.gammaSpectrumData is None:
+        if datum.gammaSpectrumData is None:
+            print('no data in gammaSpec')
             return
         c = time.time()
         for i in range(len(datum.gammaSpectrumData)):
         # print(datum.gammaSpectrumData[i])
+            # temp_array = np.array(datum.gammaSpectrumData[i].spectrum.intSpectrum.spectrumInt)
+            # np.save('spectra_det{}_t{}'.format(i, time.time()), temp_array)
             extracted_array = [str(item) for item in datum.gammaSpectrumData[i].spectrum.intSpectrum.spectrumInt]
             extracted_array = ','.join(extracted_array)
             extracted_array = '\"' + extracted_array + '\"'

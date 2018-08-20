@@ -76,12 +76,13 @@ import numpy as np
 # import wind_daq.ptu.catch_measurements
 
 ######### VN 300 Libraries ##########
-sys.path.append('/home/cbritt2/wind_daq/libs/vnproglib-1.1.4.0/python/build/lib.linux-x86_64-3.5')
 from vnpy import *
 
 ##### Other utilities
 
-from threading import Thread
+# from threading import Thread
+from wind_daq.utils.threads import StoppableThread
+
 
 ########## DONE IMPORTING ################
 
@@ -339,7 +340,7 @@ class PTU:
             isRectified=False,  # Correlating perspective from multiple spatial positions. Should be true for stereo cameras
             intrinsics=cameraIntrinsics,
             isDeBayered=False,  # Partial colors converted into full colors
-            timeStamp=int(time.time() * 1000))
+            timeStamp=int(time.time()))
         # # NOTE: there's also "intrinsics" if isRectified is False.
         self.contextVideoDefinitions += [
             ContextVideoDefinition(
@@ -360,7 +361,7 @@ class PTU:
             gammaGrossCountDefinitions=self.gammaGrossCountDefinitions,
             environmentalDefinitions=self.environmentDefinitions,
             navigationSensorDefinitions=self.navigationDefinitions,
-            timeStamp=int(time.time() * 1000),
+            timeStamp=int(time.time()),
             apiVersion='yolo')
 
         return
@@ -448,10 +449,10 @@ class PTU:
         return
 
     def caenlib_spool(self):
-        num_caen_channels = 1
+        num_caen_channels = 4
         num_channels = 4096
 
-        self.gammaHandlingState = np.array([0], dtype=np.int32)
+        self.gammaHandlingState = np.array([1], dtype=np.int32)
         self.gammaHandlingShortData = np.zeros((num_caen_channels, num_channels), dtype=np.uint32)
         self.gammaHandlingLongData = np.zeros((num_caen_channels, num_channels), dtype=np.uint32)
 
@@ -463,144 +464,164 @@ class PTU:
             # 1 = start acquisition
             # 2 = stop acquisition
             # 3 = cleanup and jump out of the code.
-        self.caenlib_thread = Thread(target=caenlib.measurement_spool,
-                                     args=(self.gammaHandlingState,
-                                           self.gammaHandlingShortData,
-                                           self.gammaHandlingLongData,
-                                           self.gammaHandlingShortData.size,
-                                           self.gammaHandlingShortData.shape),
-                                     name='caenlib_spool')
+        # self.caenlib_thread = Thread(target=caenlib.measurement_spool,
+        #                              args=(self.gammaHandlingState,
+        #                                    self.gammaHandlingShortData,
+        #                                    self.gammaHandlingLongData,
+        #                                    self.gammaHandlingShortData.size,
+        #                                    self.gammaHandlingShortData.shape),
+        #                              name='caenlib_spool')
+        self.caenlib_thread = StoppableThread(
+            target=caenlib.measurement_spool,
+            args=(self.gammaHandlingState,
+                  self.gammaHandlingShortData,
+                  self.gammaHandlingLongData,
+                  self.gammaHandlingShortData.size,
+                  self.gammaHandlingShortData.shape))
         self.caenlib_thread.start()
+        time.sleep(2)
+        print('started caenlib')
         # t1.join()
         # NOTE: Have to test by setting self.gammaHandlingState to not zero and check in C.
         # Make sure it's reading from the pointer directly in each loop.
 
-    def measurement_spool(self):
-        time.sleep(1)
-        c = time.time()
-        # Construct thrift objects for packaging.
-        # 3) pushData
-        # NOTE: Decision: I'll control frequency from here. CSVSeeker has to keep track of the index and read from that point on. This will make it more modular and when I decide to update the spool to use the CAENLibs it'll be easier to do so.
-        # NOTE: Decision: I'll package, send, then dump.
+    def measurement_spool(self, measurement_time):
+        print('starting  measurement spool')
+        # for yolo in range(measurement_time):
+        for i in range(measurement_time):
+            if self.payload_thread.stopped():
+                break
+            time.sleep(1)
+            c = time.time()
+            # Construct thrift objects for packaging.
+            # 3) pushData
+            # NOTE: Decision: I'll control frequency from here. CSVSeeker has to keep track of the index and read from that point on. This will make it more modular and when I decide to update the spool to use the CAENLibs it'll be easier to do so.
+            # NOTE: Decision: I'll package, send, then dump.
 
-        # QUESTION: How do I call this function???
+            # QUESTION: How do I call this function???
 
-        # gammaSpec = []
-        # gammaCounts = []
-        livetime = 1.0  # HACK
-        realtime = 1.0  # HACK
-        gammaSpectrumData = []
-        gammaGrossCountData = []
-        # for i in range(len(self.gammaHandling)):
-        for i in range(self.gammaHandlingShortData.shape[1]):
-            # NOTE: I have to figure out how this exactly works. And surely there's a step to convert long and short charge integrations into energy deposited. But I'm not sure how this is supposed to work. More testing :/
+            # gammaSpec = []
+            # gammaCounts = []
+            livetime = 1000  # HACK
+            realtime = 1000  # HACK
+            gammaSpectrumData = []
+            gammaGrossCountData = []
+            # for i in range(len(self.gammaHandling)):
+            for i in range(self.gammaHandlingShortData.shape[0]):
+                # NOTE: I have to figure out how this exactly works. And surely there's a step to convert long and short charge integrations into energy deposited. But I'm not sure how this is supposed to work. More testing :/
 
-            timestamp = time.time()
+                # NOTE: why do I do this??
+                #############################################
+                # snapshot = self.gammaHandling[i].get_updates()
+                # gammaSpec += [self.gammaHandlingLongData]
+                # gammaCounts += [np.sum(self.gammaHandlingLongData)]
+                # gammaSpec += [snapshot]
+                # gammaCounts += [np.sum(snapshots)]
+                #############################################
+                print('before intSpec')
+                intSpectrum = [int(x) for x in self.gammaHandlingLongData[i, :]]
+                print('after intSpec')
+                integerSpectrum = Spectrum(
+                    spectrumInt=intSpectrum,
+                    format=SpectrumFormat.ARRAY,
+                    channelCount=len(intSpectrum),
+                    liveTime=livetime)
 
-            # NOTE: why do I do this??
-            #############################################
-            # snapshot = self.gammaHandling[i].get_updates()
-            # gammaSpec += [self.gammaHandlingLongData]
-            # gammaCounts += [np.sum(self.gammaHandlingLongData)]
-            # gammaSpec += [snapshot]
-            # gammaCounts += [np.sum(snapshots)]
-            #############################################
-            intSpectrum = [int(x) for x in self.gammaHandlingLongData[:, i]]
-            integerSpectrum = Spectrum(
-                spectrumInt=intSpectrum,
-                format=SpectrumFormat.ARRAY,
-                channelCount=len(intSpectrum),
-                liveTime=livetime)
+                spectrumResult = SpectrumResult(
+                    intSpectrum=integerSpectrum)
 
-            spectrumResult = SpectrumResult(
-                intSpectrum=integerSpectrum)
+                gammaSpectrumData += [GammaSpectrumData(
+                    componentId=self.uuid_dict['GammaDetector'],
+                    timeStamp=int(time.time()),
+                    health=Health.Nominal,
+                    spectrum=spectrumResult,
+                    liveTime=livetime,
+                    realTime=realtime)]
+                gammaGrossCountData += [GammaGrossCountData(
+                    componentId=self.uuid_dict['GammaDetector'],
+                    timeStamp=int(time.time()),
+                    health=Health.Nominal,
+                    counts=sum(intSpectrum),
+                    liveTime=livetime,
+                    realTime=realtime)]
 
-            gammaSpectrumData += [GammaSpectrumData(
-                componentId=self.uuid_dict['GammaDetector'],
-                timeStamp=timestamp,
-                health=Health.Nominal,
-                spectrum=spectrumResult,
-                liveTime=livetime,
-                realTime=realtime)]
-            gammaGrossCountData += [GammaGrossCountData(
-                componentId=self.uuid_dict['GammaDetector'],
+            # gammaSpectrumData = get_gammaSpectrumData(db, lasttime)
+            # gammaSpectrumData = self.get_gammaSpectrumData()
+            # gammaListData  = get_gammaListData(db)
+            gammaListData = []
+            # gammaGrossCountData = get_gammaGrossCountData(db, lasttime)
+            # gammaGrossCountData = self.get_gammaGrossCountData()
+            # gammaDoseData = get_gammaDoseData(db)
+            gammaDoseData = []
+            # neutronListData = get_neutronListData(db)
+            neutronListData = []
+            # neutronSpectrumData = get_neutronSpectrumData(db)
+            neutronSpectrumData = []
+            # neutronGrossCountData = get_neutronGrossCountData(db)
+            neutronGrossCountData = []
+            # navigationData = self.get_navigationData()  # GPS data
+            # navigationData = []
+            # environmentalData = self.get_environmentalData()  # Temperature and pressure data from the GPS module
+            # environmentalData = []
+            # videoData = get_videoData(db)  # Let's, leave this for now I think.
+            videoData = []
+            pointCloudData = []
+            voxelData = []
+            meshData = []
+            messages = []
+            waypoints = []
+            boundingboxes = []
+            markers = []
+            algorithmData = []
+            streamIndexData = []
+            configuration = [self.systemConfiguration]
+
+            dataPayload = DataPayload(
+                unitId=self.uuid_dict['PTU'],
                 timeStamp=int(time.time()),
-                health=Health.Nominal,
-                counts=sum(intSpectrum),
-                liveTime=1.0,
-                realTime=1.0)]
+                systemHealth=Health.Nominal,
+                isEOF=False,
+                # recordingConfig=recordingConfiguration,
+                gammaSpectrumData=gammaSpectrumData,
+                # gammaListData=gammaListData,
+                gammaGrossCountData=gammaGrossCountData)
+                # gammaDoseData=gammaDoseData,
+                # neutronListData=neutronListData,
+                # neutronSpectrumData=neutronSpectrumData,
+                # neutronGrossCountData=neutronGrossCountData,
+                # environmentalData=environmentalData,
+                # navigationData=navigationData)
+                # videoData=videoData,
+                # pointCloudData=pointCloudData,
+                # voxelData=voxelData,
+                # meshData=meshData,
+                # messages=messages,
+                # waypoints=waypoints,
+                # boundingBoxes=boundingboxes,
+                # markers=markers,
+                # algorithmData=algorithmData,
+                # streamIndexData=streamIndexData,
+                # configuration=configuration)
+            d = time.time()
+            print('Payload construction {}s'.format(d-c))
+            c = time.time()
 
-        # gammaSpectrumData = get_gammaSpectrumData(db, lasttime)
-        # gammaSpectrumData = self.get_gammaSpectrumData()
-        # gammaListData  = get_gammaListData(db)
-        gammaListData = []
-        # gammaGrossCountData = get_gammaGrossCountData(db, lasttime)
-        # gammaGrossCountData = self.get_gammaGrossCountData()
-        # gammaDoseData = get_gammaDoseData(db)
-        gammaDoseData = []
-        # neutronListData = get_neutronListData(db)
-        neutronListData = []
-        # neutronSpectrumData = get_neutronSpectrumData(db)
-        neutronSpectrumData = []
-        # neutronGrossCountData = get_neutronGrossCountData(db)
-        neutronGrossCountData = []
-        # navigationData = self.get_navigationData()  # GPS data
-        # navigationData = []
-        # environmentalData = self.get_environmentalData()  # Temperature and pressure data from the GPS module
-        # environmentalData = []
-        # videoData = get_videoData(db)  # Let's, leave this for now I think.
-        videoData = []
-        pointCloudData = []
-        voxelData = []
-        meshData = []
-        messages = []
-        waypoints = []
-        boundingboxes = []
-        markers = []
-        algorithmData = []
-        streamIndexData = []
-        configuration = [self.systemConfiguration]
+            self.payload = dataPayload
 
-        dataPayload = DataPayload(
-            unitId=self.uuid_dict['PTU'],
-            timeStamp=int(time.time() * 1000),
-            systemHealth=Health.Nominal,
-            isEOF=False,
-            # recordingConfig=recordingConfiguration,
-            gammaSpectrumData=gammaSpectrumData,
-            # gammaListData=gammaListData,
-            gammaGrossCountData=gammaGrossCountData)
-            # gammaDoseData=gammaDoseData,
-            # neutronListData=neutronListData,
-            # neutronSpectrumData=neutronSpectrumData,
-            # neutronGrossCountData=neutronGrossCountData,
-            # environmentalData=environmentalData,
-            # navigationData=navigationData)
-            # videoData=videoData,
-            # pointCloudData=pointCloudData,
-            # voxelData=voxelData,
-            # meshData=meshData,
-            # messages=messages,
-            # waypoints=waypoints,
-            # boundingBoxes=boundingboxes,
-            # markers=markers,
-            # algorithmData=algorithmData,
-            # streamIndexData=streamIndexData,
-            # configuration=configuration)
-        d = time.time()
-        print('Payload construction {}s'.format(d-c))
-        c = time.time()
+            for i in range(self.gammaHandlingShortData.shape[0]):
+                np.save('/home/holiestcow/Documents/winds/thrift/wind_daq/ptu/spectra_det{}_t{}s.npy'.format(
+                    i, time.time()),
+                    self.gammaHandlingLongData[i, :])
 
-        self.payload += [dataPayload]
-
-        # Write the data in the thrift package into the sqlite3 on PTU local.
-        # Write to db every second? Or write everytime I push????
-        # self.db.stack_datum(singlePayload)
+            # Write the data in the thrift package into the sqlite3 on PTU local.
+            # Write to db every second? Or write everytime I push????
+            # self.db.stack_datum(singlePayload)
         return
 
     def get_navigationData(self):
+        print('polling vectornav')
         # ypr = self.gps.read_yaw_pitch_roll()  # Should be a 3v
-        ecef_register = self.gps.read.read_gps_solution_ecef()  # ECEF register
+        ecef_register = self.gps.read_gps_solution_ecef()  # ECEF register
 
         location = Location(
             latitude=ecef_register.position.x,
@@ -618,7 +639,7 @@ class PTU:
             mostSignificantBits=x[1])
         data = Waypoint(
             waypointId=uuid,
-            timeStamp=int(time.time()) * 1000,
+            timeStamp=int(time.time()),
             name='measurement_waypoint',
             location=location)
 
@@ -634,14 +655,15 @@ class PTU:
             mostSignificantBits=x[1])
         data = EnvironmentalSensorData(
             component=self.uuid_dict['GPS'],
-            timeStamp=int(time.time()) * 1000,
+            timeStamp=int(time.time()),
             health=Health.Nominal,
             value=temp_data)
 
         return data
 
-    # def start_gps(self):
-    #     self.gps =
+    def start_gps(self):
+        self.gps = VnSensor()
+        self.gps.connect('/dev/ttyUSB0', 115200)
 
     def main_loop(self):
 
@@ -694,19 +716,26 @@ class PTU:
         # self.thread.start()
 
         # starting gamma sensor services.
-        self.payload = []
+        measurement_time = 10
+        self.payload = None
         self.caenlib_spool()
-        self.gammaHandlingState = 1  # start acquisition. on the clib side
+        self.gammaHandlingState[0] = 1  # start acquisition. on the clib side
 
-        self.payload_thread = Thread(target=self.measurement_spool,
-                                     name='payload_spool')
+        #NOTE: Payload thread should sit another spool that happens every 1 second. Measurement spool should have a while true I think.
+
+        self.payload_thread = StoppableThread(
+            target=self.measurement_spool,
+            args=(measurement_time,),
+            name='payload_spool')
+        # self.payload_thread = Timer(measurement_time,
+        #                             self.measurement_spool,
+        #                             args=(measurement_time,))
         self.payload_thread.start()
 
         # starting navigation services.
         # self.start_gps()
 
-
-        while True:
+        for lol in range(measurement_time):
             # NOTE: There should be a sleep for one second for each independent process.
             time.sleep(1.0)  # Sleep for one second
             a = time.time()
@@ -718,19 +747,22 @@ class PTU:
             definitionAndConfigurationUpdate = DefinitionAndConfigurationUpdate()
 
             c = time.time()
-            isGood = client.reportStatus(
+            messagefromcvrs = client.reportStatus(
                 sessionId=session.sessionId,
-                status=status,
+                status=self.status,
                 definitionAndConfigurationUpdate=definitionAndConfigurationUpdate)
             d = time.time()
             print('Report Status {}s'.format(d - c))
-
+            # print(self.payload)
+            print('trying to pushdata')
+            print(self.payload)
             isGood = client.pushData(
                 sessionId=session.sessionId,
                 datum=self.payload,
                 definitionAndConfigurationUpdate=definitionAndConfigurationUpdate)
+            print('called the function')
             d = time.time()
-            print('Payload delivery {}s'.format(d - c))
+            print(isGood)
             while not isGood:
                 print('delivery failure')
                 # not sure if sleep is good here. or continuous trying
@@ -739,10 +771,11 @@ class PTU:
                     datum=self.payload,
                     definitionAndConfigurationUpdate=definitionAndConfigurationUpdate)
 
+            print('Payload delivery {}s'.format(d - c))
             # QUESTION: Write everytime I stack into PTU Local? Or write everytime I push?
 
             # Empty the payload buffer
-            self.payload = []
+            self.payload = None
 
             acks = []
             # NOTE: No way of handling acks right now.
@@ -754,19 +787,23 @@ class PTU:
             print('time elapsed: {}'.format(b-a))
             lasttime = time.time()
 
-
         # NOTE: Frankly I should never get to the close, since I'll be infinitely looping
+        self.gammaHandlingState[0] = 3
+        time.sleep(1)
+        self.caenlib_thread.stop()
+        self.payload_thread.stop()
         self.transport.close()
+        print('getting out of main_loop')
         return
 
 
 def ptu_cleanup(ptu_object):
     ptu_object.gammaHandlingState = 3
     time.sleep(1)  # wait for the cleanup to happen
-    ptu_object.payload_thread.join()
-    time.sleep(1)  # wait for the cleanup to happen
-    ptu_object.caenlib_thread.join()
+    ptu_object.caenlib_thread.stop()
     time.sleep(1)
+    ptu_object.payload_thread.stop()
+    time.sleep(1)  # wait for the cleanup to happen
     ptu_object.transport.close()
     time.sleep(1)
     return
@@ -781,11 +818,13 @@ def main():
         # in case of  error.
         # initiate clean up and free up memory.
         ptu_cleanup(ptu)
-    except:
+    except Exception as e:
+        print(str(e))
         # in  case of some other error, make sure cleanup happens.
         # initiate clean up and free up memory.
         # transport.close()  # close socket.
         ptu_cleanup(ptu)
+    # ptu_cleanup(ptu)
     return
 
 
