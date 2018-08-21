@@ -14,11 +14,17 @@ class DatabaseOperations(object):
     def initialize_structure(self, numdetectors=None):
         # with unit configuration, initialize the entire configuration
         # I may need much more than config to be fair.
-        if numdetectors is not None:
-            for i in range(numdetectors):
+
+        # QUESTION: Should CPS be real or int?
+        # QUESTION: Should long and lat be real or int?
+        for i in range(numdetectors):
+            if numdetectors is not None:
+                for i in range(numdetectors):
+                    self.c.execute('''CREATE TABLE IF NOT EXISTS det_{}(Time integer, PositionId integer, Spectrum_Array text, CPS real)'''.format(i))
+            else:
                 self.c.execute('''CREATE TABLE IF NOT EXISTS det_{}(Time integer, PositionId integer, Spectrum_Array text, CPS real)'''.format(i))
-        else:
-            self.c.execute('''CREATE TABLE IF NOT EXISTS det_0(Time integer, PositionId integer, Spectrum_Array text, CPS real)''')
+
+        self.c.execute('''CREATE TABLE IF NOT EXISTS gps(Time integer, Longitude real, Latitude real, NumberofSatellites integer)''')
 
     def fake_stack_datum(self, stuff, tablename):
         self.c.execute("INSERT INTO {}(Time, PositionId, Spectrum_Array, CPS) \
@@ -29,32 +35,51 @@ class DatabaseOperations(object):
         return
 
     def stack_datum(self, datum):
+        gamma_flag = True
+        gps_flag = True
         print('stacking datum')
         if datum is None:
             print('no data')
-            return
-        # if datum.gammaSpectrumData is None:
-        if datum.gammaSpectrumData is None:
+            gamma_flag = False
+            gps_flag = False
+        elif datum.gammaSpectrumData is None:
             print('no data in gammaSpec')
-            return
+            gamma_flag = False
+        elif datum.navgiationData is None:
+            print('no gps data in datum')
+            gps_flag = False
         c = time.time()
-        for i in range(len(datum.gammaSpectrumData)):
-        # print(datum.gammaSpectrumData[i])
-            # temp_array = np.array(datum.gammaSpectrumData[i].spectrum.intSpectrum.spectrumInt)
-            # np.save('spectra_det{}_t{}'.format(i, time.time()), temp_array)
-            extracted_array = [str(item) for item in datum.gammaSpectrumData[i].spectrum.intSpectrum.spectrumInt]
-            extracted_array = ','.join(extracted_array)
-            extracted_array = '\"' + extracted_array + '\"'
-            timestamp = float(datum.gammaSpectrumData[i].timeStamp)
-            positionid = 1  # PositionID (I'm going off of the train dataset
-            cps = datum.gammaGrossCountData[i].counts
-            # cps = float(np.sum(np.array(extracted_array)) / \
-            #     float(datum.gammaSpectrumData[i].liveTime))  # CPS
-            # print(cps)
-            # self.c.execute("INSERT INTO det_{}(Time, Spectrum_Array, CPS) \
-            #                 VALUES({}, {}, {});".format(
-            # self.c.execute("INSERT INTO det_{}(Time, PositionId, CPS, Spectrum_Array) VALUES ({}, {}, {}, {});".format(i, timestamp, positionid, cps, text_array))
-            self.c.execute("INSERT INTO det_0(Time, PositionId, CPS, Spectrum_Array) VALUES ({}, {}, {}, {});".format(timestamp, positionid, cps, extracted_array))
+        if gamma_flag:
+            for i in range(len(datum.gammaSpectrumData)):
+            # print(datum.gammaSpectrumData[i])
+                # temp_array = np.array(datum.gammaSpectrumData[i].spectrum.intSpectrum.spectrumInt)
+                # np.save('spectra_det{}_t{}'.format(i, time.time()), temp_array)
+                extracted_array = [str(item) for item in datum.gammaSpectrumData[i].spectrum.intSpectrum.spectrumInt]
+                extracted_array = ','.join(extracted_array)
+                extracted_array = '\"' + extracted_array + '\"'
+                timestamp = float(datum.gammaSpectrumData[i].timeStamp)
+                positionid = 1  # PositionID (I'm going off of the train dataset
+                cps = datum.gammaGrossCountData[i].counts
+                # cps = float(np.sum(np.array(extracted_array)) / \
+                #     float(datum.gammaSpectrumData[i].liveTime))  # CPS
+                # print(cps)
+                # self.c.execute("INSERT INTO det_{}(Time, Spectrum_Array, CPS) \
+                #                 VALUES({}, {}, {});".format(
+                # self.c.execute("INSERT INTO det_{}(Time, PositionId, CPS, Spectrum_Array) VALUES ({}, {}, {}, {});".format(i, timestamp, positionid, cps, text_array))
+                self.c.execute("INSERT INTO det_{}(Time, PositionId, CPS, Spectrum_Array) VALUES ({}, {}, {}, {});".format(i, timestamp, positionid, cps, extracted_array))
+        if gps_flag:
+            for i in range(len(datum.navigationData)):
+                piece = datum.navigationData[i]
+                timestamp = piece.timeStamp
+                numSatellites = piece.numberOfSatellites
+
+                location = piece.location
+                latitude = location.latitude  # double
+                longitude = location.longitude  # double
+
+                self.c.execute("INSERT INTO gps(Time, Latitude, Longitude, NumberofSatellites) VALUES ({}, {}, {}, {});".format(
+                    timestamp, latitude, longitude, numSatellites))
+
         self.conn.commit()
         d = time.time()
         print('DB write: {}s'.format(d-c))
