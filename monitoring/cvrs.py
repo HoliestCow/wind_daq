@@ -30,16 +30,16 @@ from thrift.protocol import TBinaryProtocol
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
-from dash.dependencies import Input, Output, State, Event
-import plotly.plotly as py
+import os
+
+from dash.dependencies import Input, Output, State
+# import plotly.plotly as py
 from plotly.graph_objs import *
-from scipy.stats import rayleigh
-from flask import Flask
+# from scipy.stats import rayleigh
+# from flask import Flask
 import numpy as np
 import pandas as pd
-import os
 import sqlite3
-import datetime as dt
 
 ############ Database Stuff ##############
 
@@ -53,7 +53,7 @@ from wind_daq.utils.database import DatabaseOperations
 
 ########## DONE IMPORTING ################
 
-start_clock = dt.datetime.now()
+# start_clock = dt.datetime.now()
 
 class CVRSHandler(Iface):
     """
@@ -130,7 +130,7 @@ class CVRSHandler(Iface):
         # this may just be sessionId. I'm not sure if this is a Session object or not. (sessionId.sessionId)
         if sessionId == self.current_sessionId:
             ptu_message = []
-            self.db.initialize_structure(numdetectors=1)
+            self.db.initialize_structure(numdetectors=4)
             return ptu_message
         else:
             # Sessions ID does not match.
@@ -163,16 +163,7 @@ class CVRSHandler(Iface):
         if sessionId == self.current_sessionId:
             print('here')
             # Use private methods to store data into a local  SQL database
-            # self.db.stack_datum(datum, definitionAndConfigurationUpdate.systemConfiguration)
             self.db.stack_datum(datum)
-
-            # append datum to data
-            # NOTE: This is a list of objects. I probably want to construct this differently.
-            # self.session[sessionId]['data'] += [datum]
-
-            # self.sessions[sessionId]['systemDefinition'] = definitionAndConfigurationUpdate.systemDefinition
-            # self.sessions[sessionId]['systemConfiguration'] = \
-            #     definitionAndConfigurationUpdate.systemConfiguration
             return [True]
         else:
             print('This  is gonna fail me hard.')
@@ -203,40 +194,46 @@ app.layout = html.Div([
         html.H2("Radiation Monitoring"),
         html.Img(src="https://s3-us-west-1.amazonaws.com/plotly-tutorials/logo/new-branding/dash-logo-by-plotly-stripe-inverted.png"),
     ], className='banner'),
+
     html.Div([
         html.Div([
-            html.H3("Gamma Counts Per Second (cps)")
+            html.H3("Gamma Detectors")
         ], className='Title'),
         html.Div([
-            dcc.Graph(id='gamma-cps'),
-        ], className='twelve columns wind-speed'),
-        dcc.Interval(id='gamma-cps-update', interval=1000, n_intervals=0),
+            dcc.Graph(id='gamma-cps',
+                      figure=Figure(
+                          layout=Layout(
+                              title='CPS'
+                          )
+                      )),
+        # ], className='twelve columns wind-speed'),
+        ], className='six columns wind-speed'), # twelve / six controls the width of the space.
+
+        html.Div([
+            # html.Div([
+            #     html.H3("WIND DIRECTION")
+            # ], className='Title'),
+            dcc.Graph(id='gps-location',
+                      figure=Figure(
+                           layout=Layout(
+                               title='GPS Location'
+                           )
+                      )),
+        ], className='five columns wind-polar'),
+        dcc.Interval(id='periodic-update', interval=1000, n_intervals=0),
     ], className='row gamma-row'),
+# ], className='row wind-histo-polar'),
+# ], style={'padding': '0px 10px 15px 10px',
+#           'marginLeft': 'auto', 'marginRight': 'auto', "width": "900px",
+#           'boxShadow': '0px 0px 5px 5px rgba(204,204,204,0.4)'})
+
     html.Div([
-        html.Div([
-            html.H3("Gamma Spectrum (counts per bin)")
-        ], className='Title'),
-        html.Div([
-            dcc.Slider(
-                id='bin-slider',
-                min=1,
-                max=60,
-                step=1,
-                value=20,
-                updatemode='drag'
-            ),
-        ], className='histogram-slider'),
-        html.P('# of Bins: Auto', id='bin-size', className='bin-size'),
-        html.Div([
-            dcc.Checklist(
-                id='bin-auto',
-                options=[
-                    {'label': 'Auto', 'value': 'Auto'}
-                ],
-                values=['Auto']
-            ),
-        ], className='bin-auto'),
-        dcc.Graph(id='spectrum-histogram'),
+        dcc.Graph(id='spectrum-histogram',
+                  figure=Figure(
+                      layout=Layout(
+                          title='Spectrum'
+                      )
+                  )),
     ], className='twelve columns spectrum-histogram')
 ], style={'padding': '0px 10px 15px 10px',
               'marginLeft': 'auto', 'marginRight': 'auto', "width": "900px",
@@ -250,27 +247,109 @@ app.layout = html.Div([
     # ], className='row wind-histo-polar')
 
 
+external_css = ["https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css",
+                "https://cdn.rawgit.com/plotly/dash-app-stylesheets/737dc4ab11f7a1a8d6b5645d26f69133d97062ae/dash-wind-streaming.css",
+                "https://fonts.googleapis.com/css?family=Raleway:400,400i,700,700i",
+                "https://fonts.googleapis.com/css?family=Product+Sans:400,400i,700,700i"]
 
-@app.callback(Output('gamma-cps', 'figure'), [Input('gamma-cps-update', 'n_intervals')])
-def gen_wind_speed(interval):
-    # now = dt.datetime.now()
-    # sec = now.second
-    # minute = now.minute
-    # hour = now.hour
-    global start_clock
-    now = dt.datetime.now() - start_clock
-    now = now.seconds
 
-    # total_time = (hour * 3600) + (minute * 60) + (sec)
+for css in external_css:
+    app.css.append_css({"external_url": css})
+
+if 'DYNO' in os.environ:
+    app.scripts.append_script({
+        'external_url': 'https://cdn.rawgit.com/chriddyp/ca0d8f02a1659981a0ea7f013a378bbd/raw/e79f3f789517deec58f41251f7dbb6bee72c44ab/plotly_ga.js'
+    })
+
+
+@app.callback(Output('gps-location', 'figure'), [Input('periodic-update', 'n_intervals')])
+def get_gps(interval):
+    now = int(time.time())
 
     con = sqlite3.connect("./CVRS_local.sqlite3")
-    # df = pd.read_sql_query('SELECT Speed, SpeedError, Direction from Wind where\
-    #                         rowid > "{}" AND rowid <= "{}";'
-    #                         .format(total_time-200, total_time), con)
-    # NOTE: This is all sorts of  fucked up right now. Index is in some weird time.
+    df = pd.read_sql_query('SELECT Latitude, Longitude FROM gps WHERE Time > "{}" AND Time <= "{}";'
+                           .format(now - 60, now), con)
 
+    trace = Scatter(
+        x=list(df['Longitude']),
+        y=list(df['Latitude']),
+        # x=list(df['Latitude']),
+        # y=list(df['Longitude']),
+        # line=Line(
+        #     color='#42C4F7'
+        # ),
+        hoverinfo='skip',
+        mode='markers',
+        marker=dict(
+            size=4
+        )
+    )
+
+    layout = Layout(
+        height=450,
+        xaxis=dict(
+            range=[-83.9244, -83.9240],
+            showgrid=True,
+            showline=False,
+            zeroline=False,
+            fixedrange=True,
+            # tickvals=[0, 10, 20, 30, 40, 50, 60],
+            # ticktext=['60', '50', '40', '30', '20', '10', '0'],
+            title='Latitude'
+        ),
+        yaxis=dict(
+            range=[35.9565, 35.9569],
+            showline=False,
+            showgrid=True,
+            fixedrange=True,
+            zeroline=False,
+            # nticks=max(6, round(df['CPS'].iloc[-1] / 10)),
+            title='Longitude'
+        ),
+        margin=Margin(
+            t=45,
+            l=50,
+            r=50
+        )
+    )
+    # NOTE: This is for GPS Location
+#     mapbox_access_token = 'pk.eyJ1IjoiY2JyaXR0MiIsImEiOiJjamxocGwyZzkwNTAwM3ZsYW45cGphaGVnIn0.7OFl5XmUtxSvZE0JWA_Oyw'
+#
+#     trace = Scattermapbox(
+#         lat=list(df['Latitude']),
+#         lon=list(df['Longitude']),
+#         mode='markers',
+#         marker=dict(
+#             size=14
+#         ),
+#         # hoverinfo='text',
+#     )
+#
+#     layout = Layout(
+#         autosize=True,
+#         hovermode='closest',
+#         mapbox=dict(
+#             accesstoken=mapbox_access_token,
+#             bearing=0,
+#             center=dict(
+#                 lat=-83.9231033325195,
+#                 lon=35.9570732116699
+#                 ),
+#             pitch=0,
+#             zoom=5
+#         ),
+# )
+
+
+    return Figure(data=[trace], layout=layout)
+
+@app.callback(Output('gamma-cps', 'figure'), [Input('periodic-update', 'n_intervals')])
+def gen_cps(interval):
+    now = int(time.time())
+
+    con = sqlite3.connect("./CVRS_local.sqlite3")
     df = pd.read_sql_query('SELECT CPS from det_0 where Time > "{}" AND Time <= "{}";'
-                           .format(now-60, now), con)
+                           .format(now - 60, now), con)
 
     trace = Scatter(
         y=df['CPS'],
@@ -390,30 +469,18 @@ def gen_wind_speed(interval):
 
 
 @app.callback(Output('spectrum-histogram', 'figure'),
-              [Input('gamma-cps-update', 'n_intervals')],
-              [State('gamma-cps', 'figure'),
-               State('bin-slider', 'value'),
-               State('bin-auto', 'values')])
+              [Input('periodic-update', 'n_intervals')])
+              # [State('gamma-cps', 'figure')])
+               # State('bin-slider', 'value'),
+               # State('bin-auto', 'values')])
 # @app.callback(Output('wind-speed', 'figure'), [Input('wind-speed-update', 'n_intervals')])
-def gen_wind_histogram(interval, wind_speed_figure, sliderValue, auto_state):
-    # now = dt.datetime.now()
-    # sec = now.second
-    # minute = now.minute
-    # hour = now.hour
-    global start_clock
-    now = dt.datetime.now() - start_clock
-    now = now.seconds
-
-    # total_time = (hour * 3600) + (minute * 60) + (sec)
+def gen_wind_histogram(interval):
+    now = int(time.time())
 
     con = sqlite3.connect("./CVRS_local.sqlite3")
-    # df = pd.read_sql_query('SELECT Speed, SpeedError, Direction from Wind where\
-    #                         rowid > "{}" AND rowid <= "{}";'
-    #                         .format(total_time-200, total_time), con)
-    # NOTE: This is all sorts of  fucked up right now. Index is in some weird time.
 
     df = pd.read_sql_query('SELECT Spectrum_Array from det_0 where Time > "{}" AND Time <= "{}";'
-                           .format(now - 1000, now), con)
+                           .format(now - 20, now), con)
 
     spectrum = df['Spectrum_Array'].apply(lambda x: np.array([float(lol) for lol in x.split(',')]))
     spectrum = spectrum.sum()
@@ -430,7 +497,7 @@ def gen_wind_histogram(interval, wind_speed_figure, sliderValue, auto_state):
     layout = Layout(
         height=450,
         xaxis=dict(
-            range=[0, 1024],
+            range=[0, 4096],
             showgrid=False,
             showline=False,
             zeroline=False,
@@ -451,43 +518,7 @@ def gen_wind_histogram(interval, wind_speed_figure, sliderValue, auto_state):
             r=50
         )
     )
-
     return Figure(data=[trace], layout=layout)
-
-
-@app.callback(Output('bin-auto', 'values'), [Input('bin-slider', 'value')],
-              [State('gamma-cps', 'figure')],
-              [Event('bin-slider', 'change')])
-def deselect_auto(sliderValue, wind_speed_figure):
-    if (wind_speed_figure is not None and
-       len(wind_speed_figure['data'][0]['y']) > 5):
-        return ['']
-    else:
-        return ['Auto']
-
-@app.callback(Output('bin-size', 'children'), [Input('bin-auto', 'values')],
-              [State('bin-slider', 'value')],
-              [])
-def deselect_auto(autoValue, sliderValue):
-    if 'Auto' in autoValue:
-        return '# of Bins: Auto'
-    else:
-        return '# of Bins: ' + str(int(sliderValue))
-
-
-external_css = ["https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css",
-                "https://cdn.rawgit.com/plotly/dash-app-stylesheets/737dc4ab11f7a1a8d6b5645d26f69133d97062ae/dash-wind-streaming.css",
-                "https://fonts.googleapis.com/css?family=Raleway:400,400i,700,700i",
-                "https://fonts.googleapis.com/css?family=Product+Sans:400,400i,700,700i"]
-
-
-for css in external_css:
-    app.css.append_css({"external_url": css})
-
-if 'DYNO' in os.environ:
-    app.scripts.append_script({
-        'external_url': 'https://cdn.rawgit.com/chriddyp/ca0d8f02a1659981a0ea7f013a378bbd/raw/e79f3f789517deec58f41251f7dbb6bee72c44ab/plotly_ga.js'
-    })
 
 
 def start_thrift_server():
@@ -497,6 +528,7 @@ def start_thrift_server():
     processor = CVRSServices.CVRSEndpoint.Processor(handler)
     # transport = TSocket.TServerSocket(host='192.249.3.246', port=8080)
     transport = TSocket.TServerSocket(host='0.0.0.0', port=8080)
+    # transport = TSocket.TServerSocket(host='0.0.0.0', port=9090)
     tfactory = TTransport.TBufferedTransportFactory()
     pfactory = TBinaryProtocol.TBinaryProtocolFactory()
 
@@ -511,17 +543,20 @@ def start_thrift_server():
 
 def start_webapp_server():
     print('Starting web server.')
-    # app.run_server(host='0.0.0.0', debug=True)
-    app.run_server(port=9090, debug=False)
+    # app.run_server(host='0.0.0.0', port=9090, debug=True)
+    app.run_server(port=9090, debug=True)
     return
 
 
 if __name__ == '__main__':
-    # thrift_thread = threading.Thread(target=start_thrift_server)
-    # webapp_thread = threading.Thread(target=start_webapp_server)
 
-    # thrift_thread.start()
+    # QUESTION: Where should the thread be run? The webapp or the thrift server?
+
+    thrift_thread = threading.Thread(target=start_thrift_server)
+    # webapp_thread = threading.Thread(target=start_webapp_server)  # this cannot work. Webapp has to be the calling thread.
+
+    thrift_thread.start()
     # webapp_thread.start()
-    start_thrift_server()
-    # start_webapp_server()
+    # start_thrift_server()
+    start_webapp_server()
 # main()
