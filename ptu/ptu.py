@@ -44,8 +44,9 @@ from PhysicalDimensions.ttypes import (RectangularDimensions)
 from NavigationSensor.ttypes import (NavigationOutputDefinition,
                                      NavigationSensorDefinition,
                                      FrameOfReference,
-                                     GeodeticDatum)
-from Navigation.ttypes import(Waypoint, Location)
+                                     GeodeticDatum,
+                                     NavigationData)
+from Navigation.ttypes import Location
 from EnvironmentalSensor.ttypes import (EnvironmentalTypes,
                                         EnvironmentalSensorDefinition,
                                         EnvironmentalSensorData)
@@ -545,6 +546,8 @@ class PTU:
                     liveTime=livetime,
                     realTime=realtime)]
 
+                # navData += self.get_navigationData()  # GPS data
+
             # gammaSpectrumData = get_gammaSpectrumData(db, lasttime)
             # gammaSpectrumData = self.get_gammaSpectrumData()
             # gammaListData  = get_gammaListData(db)
@@ -559,8 +562,9 @@ class PTU:
             neutronSpectrumData = []
             # neutronGrossCountData = get_neutronGrossCountData(db)
             neutronGrossCountData = []
-            # navigationData = self.get_navigationData()  # GPS data
+
             # navigationData = []
+            navigationData = [self.get_navigationData()]
             # environmentalData = self.get_environmentalData()  # Temperature and pressure data from the GPS module
             # environmentalData = []
             # videoData = get_videoData(db)  # Let's, leave this for now I think.
@@ -584,13 +588,13 @@ class PTU:
                 # recordingConfig=recordingConfiguration,
                 gammaSpectrumData=gammaSpectrumData,
                 # gammaListData=gammaListData,
-                gammaGrossCountData=gammaGrossCountData)
+                gammaGrossCountData=gammaGrossCountData,
                 # gammaDoseData=gammaDoseData,
                 # neutronListData=neutronListData,
                 # neutronSpectrumData=neutronSpectrumData,
                 # neutronGrossCountData=neutronGrossCountData,
                 # environmentalData=environmentalData,
-                # navigationData=navigationData)
+                navigationData=navigationData)
                 # videoData=videoData,
                 # pointCloudData=pointCloudData,
                 # voxelData=voxelData,
@@ -608,10 +612,10 @@ class PTU:
 
             self.payload = dataPayload
 
-            for i in range(self.gammaHandlingShortData.shape[0]):
-                np.save('/home/holiestcow/Documents/winds/thrift/wind_daq/ptu/spectra_det{}_t{}s.npy'.format(
-                    i, time.time()),
-                    self.gammaHandlingLongData[i, :])
+            # for i in range(self.gammaHandlingShortData.shape[0]):
+            #     np.save('/home/holiestcow/Documents/winds/thrift/wind_daq/ptu/spectra_det{}_t{}s.npy'.format(
+            #         i, time.time()),
+            #         self.gammaHandlingLongData[i, :])
 
             # Write the data in the thrift package into the sqlite3 on PTU local.
             # Write to db every second? Or write everytime I push????
@@ -621,27 +625,23 @@ class PTU:
     def get_navigationData(self):
         print('polling vectornav')
         # ypr = self.gps.read_yaw_pitch_roll()  # Should be a 3v
-        ecef_register = self.gps.read_gps_solution_ecef()  # ECEF register
+        lla_register = self.gps.read_gps_solution_lla()  # ECEF register
 
         location = Location(
-            latitude=ecef_register.position.x,
-            longitude=ecef_register.position.y,
-            altitude=ecef_register.position.z)
+            latitude=float(lla_register.lla.x),
+            longitude=float(lla_register.lla.y),
+            altitude=float(lla_register.lla.z))
+        # location = Vector(
+        #     x=float(ecef_register.position.x),
+        #     y=float(ecef_register.position.y))
 
-
-        # 1: UUID.UUID waypointId;
-        # 2: i64 timeStamp; // POSIX time * 1000 - should match data packet's time stamp
-        # 3: string name;
-        # 4: Location location;
-        x = Thrift_UUID.generate_thrift_uuid()
-        uuid = UUID(
-            leastSignificantBits=x[0],
-            mostSignificantBits=x[1])
-        data = Waypoint(
-            waypointId=uuid,
+        # NOTE: GPS data has to be in a list
+        data = NavigationData(
+            componentId=self.uuid_dict['GPS'],
             timeStamp=int(time.time()),
-            name='measurement_waypoint',
-            location=location)
+            location=location,
+            # position=location,
+            health=Health.Nominal)
 
         return data
 
@@ -668,7 +668,8 @@ class PTU:
     def main_loop(self):
 
         # Make socket
-        self.transport = TSocket.TSocket('10.130.130.118', 8080)
+        # self.transport = TSocket.TSocket('10.130.130.118', 8080)
+        self.transport = TSocket.TSocket('localhost', 8080)
 
         # Buffering is critical. Raw sockets are very slow
         self.transport = TTransport.TBufferedTransport(self.transport)
@@ -716,7 +717,7 @@ class PTU:
         # self.thread.start()
 
         # starting gamma sensor services.
-        measurement_time = 10
+        measurement_time = 300
         self.payload = None
         self.caenlib_spool()
         self.gammaHandlingState[0] = 1  # start acquisition. on the clib side
@@ -733,11 +734,15 @@ class PTU:
         self.payload_thread.start()
 
         # starting navigation services.
-        # self.start_gps()
+        self.start_gps()
+        timetosleep = 0
 
         for lol in range(measurement_time):
             # NOTE: There should be a sleep for one second for each independent process.
-            time.sleep(1.0)  # Sleep for one second
+            # NOTE: Fixed time.sleep messes with the payload. Needs to be variable time.sleep().I assume each process takes less than one second.
+            print('sleeping for: ', timetosleep)
+            if timetosleep > 0:
+                time.sleep(timetosleep)  # Sleep for one second
             a = time.time()
             # 1) Look for  file changes and dump to the database
             # 2) report the status (should be the same message)
@@ -760,6 +765,9 @@ class PTU:
                 sessionId=session.sessionId,
                 datum=self.payload,
                 definitionAndConfigurationUpdate=definitionAndConfigurationUpdate)
+            # time.sleep(5)
+            print(isGood)
+            print('imadeit???')
             print('called the function')
             d = time.time()
             print(isGood)
@@ -771,7 +779,11 @@ class PTU:
                     datum=self.payload,
                     definitionAndConfigurationUpdate=definitionAndConfigurationUpdate)
 
+            if isGood:
+                # push data into own PTU_local
+                self.db.stack_datum(self.payload)
             print('Payload delivery {}s'.format(d - c))
+
             # QUESTION: Write everytime I stack into PTU Local? Or write everytime I push?
 
             # Empty the payload buffer
@@ -784,8 +796,9 @@ class PTU:
                 sessionId=session.sessionId,
                 acknowledgements=acks)
             b = time.time()
-            print('time elapsed: {}'.format(b-a))
-            lasttime = time.time()
+            print('time elapsed: {}'.format(b - a))
+            timetosleep = 1 - (b - a)
+
 
         # NOTE: Frankly I should never get to the close, since I'll be infinitely looping
         self.gammaHandlingState[0] = 3

@@ -17,12 +17,13 @@ class DatabaseOperations(object):
 
         # QUESTION: Should CPS be real or int?
         # QUESTION: Should long and lat be real or int?
-        for i in range(numdetectors):
-            if numdetectors is not None:
-                for i in range(numdetectors):
-                    self.c.execute('''CREATE TABLE IF NOT EXISTS det_{}(Time integer, PositionId integer, Spectrum_Array text, CPS real)'''.format(i))
-            else:
+        if numdetectors is not None:
+            for i in range(numdetectors):
                 self.c.execute('''CREATE TABLE IF NOT EXISTS det_{}(Time integer, PositionId integer, Spectrum_Array text, CPS real)'''.format(i))
+        else:
+            self.c.execute('''CREATE TABLE IF NOT EXISTS det_0(Time integer, PositionId integer, Spectrum_Array text, CPS real)'''.format(i))
+
+
 
         self.c.execute('''CREATE TABLE IF NOT EXISTS gps(Time integer, Longitude real, Latitude real, NumberofSatellites integer)''')
 
@@ -45,9 +46,10 @@ class DatabaseOperations(object):
         elif datum.gammaSpectrumData is None:
             print('no data in gammaSpec')
             gamma_flag = False
-        elif datum.navgiationData is None:
+        elif datum.navigationData is None:
             print('no gps data in datum')
             gps_flag = False
+        print(datum)
         c = time.time()
         if gamma_flag:
             for i in range(len(datum.gammaSpectrumData)):
@@ -68,21 +70,23 @@ class DatabaseOperations(object):
                 # self.c.execute("INSERT INTO det_{}(Time, PositionId, CPS, Spectrum_Array) VALUES ({}, {}, {}, {});".format(i, timestamp, positionid, cps, text_array))
                 self.c.execute("INSERT INTO det_{}(Time, PositionId, CPS, Spectrum_Array) VALUES ({}, {}, {}, {});".format(i, timestamp, positionid, cps, extracted_array))
         if gps_flag:
+            print('======\n======\nIHAVEGPSDATA\n========\n=======')
             for i in range(len(datum.navigationData)):
                 piece = datum.navigationData[i]
                 timestamp = piece.timeStamp
-                numSatellites = piece.numberOfSatellites
+                # NOTE: eventually number of sats
+                # numSatellites = piece.numberOfSatellites
 
                 location = piece.location
                 latitude = location.latitude  # double
                 longitude = location.longitude  # double
 
-                self.c.execute("INSERT INTO gps(Time, Latitude, Longitude, NumberofSatellites) VALUES ({}, {}, {}, {});".format(
-                    timestamp, latitude, longitude, numSatellites))
+                self.c.execute("INSERT INTO gps(Time, Latitude, Longitude) VALUES ({}, {}, {});".format(
+                    timestamp, latitude, longitude))
 
         self.conn.commit()
         d = time.time()
-        print('DB write: {}s'.format(d-c))
+        print('DB write: {}s'.format(d - c))
         return
 
     def get_dataSince(self, start, stop):
