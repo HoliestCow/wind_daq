@@ -5,9 +5,7 @@ import time
 ############### CVRS STUFF ###############
 import sys
 import glob
-sys.path.append('/home/holiestcow/Documents/winds/thrift/wind_daq/WIND-Thrift/gen-py')
-# sys.path.append('/home/holiestcow/Documents/winds/thrift')
-# sys.path.insert(0, '/home/holiestcow/thrift-0.11.0/lib/py/build/lib.linux-x86_64-3.5')
+# sys.path.append('/home/holiestcow/Documents/winds/thrift/wind_daq/WIND-Thrift/gen-py')
 
 # from tutorial import Calculator
 # from tutorial.ttypes import InvalidOperation, Operation, Work
@@ -44,7 +42,6 @@ import sqlite3
 ############ Database Stuff ##############
 
 # from .thrift_uuid import *
-sys.path.append('/home/holiestcow/Documents/winds/thrift/')
 from wind_daq.utils.thrift_uuid import Thrift_UUID
 from wind_daq.utils.database import DatabaseOperations
 

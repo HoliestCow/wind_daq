@@ -1,13 +1,10 @@
 
 ############### PTU STUFF ###############
-import sys
-# sys.path.append('/home/cbritt2/wind_daq/WIND-Thrift/gen-py')
-# sys.path.append('/home/cbritt2/')
-# sys.path.append('/home/cbritt2/env/wind_daq/lib/python3.5/site-packages')
-sys.path.append('/home/holiestcow/Documents/winds/thrift/')
-sys.path.append('/home/holiestcow/Documents/winds/thrift/wind_daq/WIND-Thrift/gen-py/')
-sys.path.append('/home/holiestcow/Documents/winds/thrift/wind_daq/libs/ptu/')
-sys.path.append('/home/holiestcow/Documents/winds/thrift/wind_daq/libs/vectornav/lib.linux-x86_64-3.5/')
+# import sys
+# sys.path.append('/home/holiestcow/Documents/winds/thrift/')
+# sys.path.append('/home/holiestcow/Documents/winds/thrift/wind_daq/WIND-Thrift/gen-py/')
+# sys.path.append('/home/holiestcow/Documents/winds/thrift/wind_daq/libs/ptu/')
+# sys.path.append('/home/holiestcow/Documents/winds/thrift/wind_daq/libs/vectornav/lib.linux-x86_64-3.5/')
 
 # sys.path.append('/home/cbritt2/')  # this is to get the wind_daq. to start working
 
