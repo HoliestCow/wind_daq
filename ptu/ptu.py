@@ -6,7 +6,7 @@ import sys
 # sys.path.append('/home/cbritt2/env/wind_daq/lib/python3.5/site-packages')
 sys.path.append('/home/holiestcow/Documents/winds/thrift/')
 sys.path.append('/home/holiestcow/Documents/winds/thrift/wind_daq/WIND-Thrift/gen-py/')
-sys.path.append('/home/holiestcow/Documents/winds/thrift/wind_daq/libs/ptu/carlReadout/')
+sys.path.append('/home/holiestcow/Documents/winds/thrift/wind_daq/libs/ptu/')
 sys.path.append('/home/holiestcow/Documents/winds/thrift/wind_daq/libs/vectornav/lib.linux-x86_64-3.5/')
 
 # sys.path.append('/home/cbritt2/')  # this is to get the wind_daq. to start working
@@ -14,7 +14,6 @@ sys.path.append('/home/holiestcow/Documents/winds/thrift/wind_daq/libs/vectornav
 # from csvseeker import CSVSeeker
 
 # for getting data out of the CAEN digitizer
-import ctypes
 import caenlib
 
 # from CVRSServices.CVRSEndpoint import Client
@@ -354,14 +353,14 @@ class PTU:
 
         self.get_gammaDefinitions()
         self.get_environmentDefinitions()
-        self.get_navigationDefinitions()
+        # self.get_navigationDefinitions()
         # contextVideoDefinition = get_contextVideoDefinitions()
 
         self.systemDefinition = SystemDefinition(
             gammaSpectrumDefinitions=self.gammaSpectrumDefinitions,
             gammaGrossCountDefinitions=self.gammaGrossCountDefinitions,
             environmentalDefinitions=self.environmentDefinitions,
-            navigationSensorDefinitions=self.navigationDefinitions,
+            # navigationSensorDefinitions=self.navigationDefinitions,
             timeStamp=int(time.time()),
             apiVersion='yolo')
 
@@ -563,8 +562,8 @@ class PTU:
             # neutronGrossCountData = get_neutronGrossCountData(db)
             neutronGrossCountData = []
 
-            # navigationData = []
-            navigationData = [self.get_navigationData()]
+            navigationData = []
+            # navigationData = [self.get_navigationData()]
             # environmentalData = self.get_environmentalData()  # Temperature and pressure data from the GPS module
             # environmentalData = []
             # videoData = get_videoData(db)  # Let's, leave this for now I think.
@@ -588,13 +587,13 @@ class PTU:
                 # recordingConfig=recordingConfiguration,
                 gammaSpectrumData=gammaSpectrumData,
                 # gammaListData=gammaListData,
-                gammaGrossCountData=gammaGrossCountData,
+                gammaGrossCountData=gammaGrossCountData)
                 # gammaDoseData=gammaDoseData,
                 # neutronListData=neutronListData,
                 # neutronSpectrumData=neutronSpectrumData,
                 # neutronGrossCountData=neutronGrossCountData,
                 # environmentalData=environmentalData,
-                navigationData=navigationData)
+                # navigationData=navigationData)
                 # videoData=videoData,
                 # pointCloudData=pointCloudData,
                 # voxelData=voxelData,
@@ -734,7 +733,7 @@ class PTU:
         self.payload_thread.start()
 
         # starting navigation services.
-        self.start_gps()
+        # self.start_gps()
         timetosleep = 0
 
         for lol in range(measurement_time):
