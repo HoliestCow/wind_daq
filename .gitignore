@@ -6,3 +6,7 @@
 ./WIND-Thrift/gen-py/
 ./WIND-Thrift/
 *.o
+*.avi
+*.txt
+*.png
+*.jpg
