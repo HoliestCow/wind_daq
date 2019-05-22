@@ -1,0 +1,252 @@
+########################################################################################
+# Config File Template
+########################################################################################
+
+# NOTE: time values (e.g. gate width) can be expressed as a pure number or with a specific
+# time unit. For instance, the three settings below are all equivalent:
+# GateWidth   1100    # 1100 ns (the default unit for the gate setting is ns)
+# GateWidth   1100 ns # 1100 ns
+# GateWidth   1.1 us  # 1.1 us = 1100 ns
+
+
+#***************************************************************************************
+# Board Connection Parameters:
+#***************************************************************************************
+ [BOARD 0]  Open USB 0 0            # direct to USB (desktop versions)
+#[BOARD 0]  Open USB 0 32100000     # V1718 - VME - digitizer (set correct base address)
+#[BOARD 0]  Open PCI 0 0 0          # direct optical link
+#[BOARD 0]  Open PCI 0 0 32100000   # V2718 - VME - digitizer (set correct base address)
+
+#***************************************************************************************
+# Common Setting (applied to all channels as default value)
+#***************************************************************************************
+[COMMON]
+
+
+#---------------------------------------------------------------------------------------
+# Acquisition Modes
+#---------------------------------------------------------------------------------------
+AcquisitionMode               MIXED             # options: LIST (timestamp, energy, psd), MIXED (list + waveform), OFF_LINE (read data from file), EMULATOR_LIST, EMULATOR_MIXED
+EventBuildMode                NONE           	# options: NONE (no channel correlation), CHREF_AND_ANYOTHER (one ref. ch. in coinc. with at least another ch.), CLOVER N M (Majority of M ch over N within time correl. win.)
+WaveformProcessor             0                 # Apply simple DPP algorithms in the software (using waveforms); 0=disabled, 3=calculate charge and tstamp
+RecordLength                  1000              # num of points in the waveform
+PreTrigger                    200               # num of point before trigger
+EventBuffering                0                 # num of events in each memory buffer (aggregate); 0=automatic. Use 1 for low rate (< 10 Hz)
+RunNumber                     0                 # set run number (use AUTO to enable automatic increment of the run number)
+
+#---------------------------------------------------------------------------------------
+# Input data file (off line mode)    
+#---------------------------------------------------------------------------------------
+InputFileType                 RAW               # options: RAW (saved with 'SaveRawData' option), BINARY_LIST, ASCII_LIST (saved with 'SaveLists' option)
+LoopInputFile                 0                 # when enabled, data file is cycled forever (restart from beginning when eof is reached)
+InputDataFilePath             DataFiles         # input data file path
+InputDataFileName             Run0_raw.dat      # input data file name
+    
+#---------------------------------------------------------------------------------------
+# Output Data Files
+#---------------------------------------------------------------------------------------
+# output file types:
+# 1) Raw: all events coming from all channels/boards saved in binary mode (this file can be used for off-line runs using InputFileType=RAW)
+# 2) Lists_individual: time ordered list of events (time stamp, energy, psd, flags); one file per channel
+# 3) Lists_merged: all channel/board events merged in one single file with ch-ID (WARNING: time ordered is not guaranteed!)
+# 4) Lists_built: events grouped according to a building criteria (e.g. Clover detectors => groups of 4 channels in a given time window)
+# 5) Histograms: energy, TAC and PSD spectra, one per channel
+# 6) Waveforms: time ordered list of events with time stamp, energy, psd and waveforms (list of samples)
+# 7) RunInfo: text file containing information about the run (run description, board type, configuration, statistics, etc...)
+SaveRawData                   0                 # 0/1 to enable/disable raw data file saving 
+SaveLists                     0                 # bit mask for list file saving: bit[0]=individual ch list, bit[1]=merged list, bit[2]=built events list
+SaveHistograms                3                 # bit mask for histo file saving: bit[0]=energy, bit[1]=time, bit[2]=psd
+SaveWaveforms                 0                 # 0/1 to enable/disable waveform file saving 
+SaveRunInfo                   1                 # 0/1 to enable/disable run info file saving
+HistoOutputFormat             ASCII_1COL        # Histogram file format: ANSI_42, ASCII_1COL, ASCII_2COL
+HeaderInListFiles             0                 # when 1, header is added in the List Files: contains ch/brd number and data format
+OutFileFormat                 ASCII             # list and waveform file format: ASCII, BINARY
+OutFileTimeStampUnit          0                 # unit for the time stamps in the output list files: 0=ps, 1=ns, 2=us, 3=ms, 4=s. ps are integer, others are float
+DataFilePath                  DataFiles         # Output DataFile path
+ConfirmFileOverwrite          0                 # when 1, the program asks the user to confirm if the output file already present can be overwritten
+NoBadEventsInListFiles        0                 # when 1, bad events (saturation, pile-up, etc...) are not saved into the list files
+
+#---------------------------------------------------------------------------------------
+# Sync and Trigger
+#---------------------------------------------------------------------------------------
+FPIOtype                      NIM               # NIM or TTL (applies to the 3 LEMO connectors on the front panel)
+StartMode                     INDEP_SW          # options: INDEP_SW, SYNCIN_1ST_SW, SYNCIN_1ST_HW, TRGIN_1ST_SW, TRGIN_1ST_HW
+SyncinMode                    TSTAMP_RESET      # options: DISABLED, TSTAMP_RESET, RUN_CTRL
+TrginMode                     DISABLED          # options: DISABLED, COMMON_TRG, COMMON_TRG_START, VETO, GATE, COINC
+VetoWindow                    0                 # 0 = as long as veto signal, otherwise width in ns
+TrgoutMode                    CHANNEL_TRIGGERS  # options: DISABLED, CHANNEL_TRIGGERS, SYNC_OUT, SQR_WAVE_1KHZ, PULSES_1KHZ, SQR_WAVE_10KHZ, PULSES_10KHZ, CLOCK
+TrgoutMask                    FF                # enable mask of the channels participating to generate TRGOUT
+
+#---------------------------------------------------------------------------------------
+# Coincidence Logic in hardware
+#---------------------------------------------------------------------------------------
+CoincMode                     DISABLED          # options: DISABLED, MAJORITY, MINORITY, PAIRED_AND, PAIRED_OR, ANTI_PAIRED_AND, COMMON_REFCH, ANTI_COMMON_REFCH, CH0_TO_ALL, AND_ALL, OR_ALL
+MajorityLevel                 3                 # Number of fired channels for MAJORITY/MINORITY
+CoincWindow                   100               # Coinc window (default unit = ns)
+
+
+#---------------------------------------------------------------------------------------
+# Input Settings
+#---------------------------------------------------------------------------------------
+EnableInput                   1                 # channels all enabled by default (can be individually disabled in [CHANNEL n] sections
+PulsePolarity                 NEGATIVE          # options: NEGATIVE, POSITIVE
+BaselineDCoffset              10                # baseline position in percent of full scale
+ZeroVoltLevel                 14800             # for non DPP firmware (StdFw), the baseline is not calcluated by the FPGA and must be set by the user with this param. Ignored in DPP firmware
+InputDynamicRange             1                 # for x730: 0=2Vpp, 1=0.5Vpp
+
+
+#---------------------------------------------------------------------------------------
+# Discriminator
+#---------------------------------------------------------------------------------------
+DiscrMode                     LED               # Discriminator type: DISABLED, LED, CFD (for PSD), RCCR2_PHA, CFD_PHA, LED_PHA (for PHA)
+TriggerThreshold              300               # threshold in ADC channels
+TrgHoldOff                    1                 # Trigger hold off (minumum time after a trigger for a new trigger to be accepted)
+TTFsmoothing                  1                 # smoothing: 0=disabled, 1, 2, 3, 4 => 2, 4, 8, 16 samples
+TTFdelay                      200               # for PHA only: typically TTDdealy = rising edge of the pulses (in ns)
+CFDdelay                      6                 # CFD delay in ns
+CFDfraction                   1                 # CFD fraction: 0=25%, 1=50%, 2=75%, 3=100%
+
+# ZC calibration (for x725, x730 and x751 only)
+EnableZCcalibr                0                 # Enable Zero-Crossing Correction table (taken from file ZCC.dat)
+ZCcalibRun                    0                 # Force a calibration run (accumulate statistics for the ZC tables)
+ZCcalibFileName               zcc.dat           # Define the file name of the ZC calibration table (overwrite same setting of sysvars.txt)
+
+#---------------------------------------------------------------------------------------
+# Charge Integration (DPP-PSD/CI)
+#---------------------------------------------------------------------------------------
+GateWidth                     1000              # gate width (long gate for the PSD). (default unit = ns)
+ShortGateWidth                50                # short gate width (default unit = ns)
+PreGate                       150               # portion of the gate before the trigger (default unit = ns)
+PileUpMode                    0                 # 0=DISABLED, 1=ENABLED (discard pile-up events)
+PurGap                        4000              # threshold for the pile-up identification
+NSBaseline                    2                 # 0=fixed, 1, 2, 3, 4 options depending on the board type (see manual)
+FixedBaseline                 0                 # imposed baseline (when NSBaseline=0)
+ChargeLLD                     0                 # suppress events with total charge < ChargeLLD (0=disabled)
+EnablePedestal                0                 # add a fixed offset = 1024 (pedestal) to the integrated charge in order to see small negative charges
+
+#---------------------------------------------------------------------------------------
+# Trapezoidal Filter (DPP-PHA)
+#---------------------------------------------------------------------------------------
+TrapRiseTime                  5000              # Trapezoid rise time (default unit = ns)
+TrapFlatTop                   1000              # Trapezoid flat top time (default unit = ns)
+TrapPoleZero                  50000             # Pole-zero compensation (default unit = ns)
+PeakingTime                   800               # peaking time from the start of the flat top (must be smaller than TrapFlatTop; typ. 80% of it)
+NSPeak                        0                 # num of samples averaged on the peak (0=1, 1=4, 2=16, 3=64)
+PeakHoldOff                   10000             # extra time to wait after the flat top before accepting a new trapezoid as good (PUR guard)
+TrapNSBaseline                5                 # 0, 1, 2, 3, 4, 5 (see PHA manual)
+
+
+#---------------------------------------------------------------------------------------
+# Energy Spectra
+#---------------------------------------------------------------------------------------
+EHnbin                        4K                # num of channels in energy spectrum (256, 512, 1K, 2K, 4K, 8K, 16K, 32K)
+EnergyCoarseGain              1                 # energy coarse gain (1/16, 1/8, 1/4, 1/2, 1, 2, 4, 8, 16, 32). Note: fractions can be expressed either as text (1/2) or float (0.5)
+EnergyFineGain                1.0000            # energy fine gain
+EnergyLCut                    1000              # lower energy cut
+EnergyUCut                    1500              # upper energy cut
+EnableEnergyFilter            0                 # enable energy cut in the SW (energy gating)
+AddBackFullScale              10000.0           # Full scale of the Add Back energy spectrum (in keV)
+ECalibration                  0 1.0 0 0         # energy calibration coeff. c0, c1, c2, c3 (c2 and c3 optional). E(keV) = c0 + c1*E(ch) + c2*(E(ch)^2) + c3*(E(ch)^3)
+
+
+#---------------------------------------------------------------------------------------
+# Timing Spectra
+#---------------------------------------------------------------------------------------
+THmin                         -50               # min value for the time spectrum
+THmax                         50                # max value for the time spectrum
+THnbin                        1K                # num of channels in time spectrum (256, 512, 1K, 2K, 4K, 8K, 16K, 32K)
+TspectrumMode                 START_STOP        # Timing Spectrum Mode: START_STOP (time from a common ref channel), INTERVALS (time between consecutive events)
+TOFstartChannel               0                 # Tref (start): channel number
+TOFstartBoard                 0                 # Tref (start): board number
+TstampOffset                  0                 # fixed value added to the time stamp read from the board
+TimeCorrelWindow              100               # window for the timing correlation filter (coincidences in the SW)
+
+
+
+#---------------------------------------------------------------------------------------
+# PSD Spectra
+#---------------------------------------------------------------------------------------
+PsdLCut                       0.00              # lower PSD cut
+PsdUCut                       1.00              # upper PSD cut
+EnablePSDFilter               0                 # enable PSD cut
+ScatterPlotMode               PSD_HORIZONTAL    # PSD_HORIZONTAL, PSD_DIAGONAL or E_VS_DELTAE
+
+
+#---------------------------------------------------------------------------------------
+# MCS Spectra (Counting)
+#---------------------------------------------------------------------------------------
+MCSHnbin                      1K                # number of channels in the MCS spectrum
+DwellTime                     100000            # time interval (in us) for the counting (each interval generates a channel in the MCS spectrum)
+
+
+#---------------------------------------------------------------------------------------
+# Stop Criteria (0 means no stop)
+#---------------------------------------------------------------------------------------
+StopOnTime                    0                 # stop run at given real time (default unit = ms)
+StopOnLiveTime                0                 # stop run at given live time (default unit = ms)
+StopOnTotalEvents             0                 # stop run at given event count (total)
+StopOnEnergyEvents            0                 # stop run at given event count in energy spectrum
+StopOnTimeEvents              0                 # stop run at given event count in timing spectrum
+
+#---------------------------------------------------------------------------------------
+# Job scheduler
+#---------------------------------------------------------------------------------------
+# The job scheduler launches a series of runs sweeping a subset of parameters in order to find the best settings. There are sections
+# starting with [JOB n] and ending with [JOBEND] in which the user can set the value of the parameters that wants to change. Any parameter
+# of the config file can be placed in the run section, including the stop criteria used to stop the current run and pass to the next run.
+# JobRuns 0 3                                   # Start run and Stop run; in this example 4 runs will be scheduled
+# JobSleep 10 s                                 # Sleep between runs (10 seconds)
+# [JOB 0] TrapRiseTime 1000 [JOBEND]            # specific parameters for Run 0 (overwrite general settings during Run 0, ignored by other runs)
+# [JOB 1] TrapRiseTime 2000 [JOBEND]            # Run 1
+# [JOB 2] TrapRiseTime 4000 [JOBEND]            # Run 2
+# [JOB 3]                                       # Run 3 (in this example, Run3 uses the same TrapRiseTime as run 2 but with a different PeakingTime
+# TrapRiseTime 4000 
+# PeakingTime 600 
+# [JOBEND]
+
+
+#---------------------------------------------------------------------------------------
+# Include files
+#---------------------------------------------------------------------------------------
+# the "Load" command allows an external config file to be included in the main config file. 
+# The syntax of the included files is the same. Nested inclusions are also possible.
+# For example it is possible to have an energy calibration file with the parameters ECalibration_m 
+# and ECalibration_q (for each channel) and load them here with the following command:
+# Load calibration_file.txt
+
+#---------------------------------------------------------------------------------------
+# Generic Writes
+#---------------------------------------------------------------------------------------
+# it is possible to add generic writes to the board registers to set parameters
+# that are not managed by a specific command in the config file. The generic writes are
+# executed last, so they can be used also to overload settings. There are two modes:
+
+# FULL REG MODE:
+# WriteRegister        Address       Value        Mask
+# WriteRegister           1080    00000020    000000F0              # set bit[7:4]=0x2 at 0x1080
+
+# BIT FIELD MODE:
+# WriteRegisterBits    Address      StartBit    StopBit    Value     
+# WriteRegisterBits       1080             4          7        2    # set bit[7:4]=0x2 at 0x1080
+
+
+#***************************************************************************************
+# Individual channel settings (overwriting default values assigned in the [COMMON] section)
+#***************************************************************************************
+
+
+#***************************************************************************************
+[BOARD 0]
+#***************************************************************************************
+[CHANNEL 0]
+# TriggerThreshold     250           # individual threshold setting for ch 0
+[CHANNEL 1]
+# EnableInput  0    # disable channel 1 only (the others are enabled by default)
+[CHANNEL 4]
+[CHANNEL 5]
+[CHANNEL 2]
+[CHANNEL 3]
+[CHANNEL 4]
+[CHANNEL 5]
+[CHANNEL 6]
+[CHANNEL 7]

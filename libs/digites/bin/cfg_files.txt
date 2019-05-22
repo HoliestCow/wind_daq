@@ -1,0 +1,4 @@
+digiTES_Config_HPGE.txt "PHA with HPGe detectors"	
+digiTES_Config_NaI.txt "PSD with NaI detectors" 
+digiTES_Config_LaBr3.txt "PSD with LaBr3 detectors (with timing analysis)" 
+digiTES_Config_with_comments.txt "Complete config file with all parameters and comments" 

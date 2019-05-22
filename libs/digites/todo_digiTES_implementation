@@ -1,0 +1,7 @@
+
+WIND_DAQ TODO for digiTES
+
+1) Get rid of the console IO shit in main
+2) make a CheckKeyboardCommands() commands equivalent
+3) Remove statistics updating while acquisition is happening.
+4) Remove all this THist, event analysis, bullshit

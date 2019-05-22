@@ -1,0 +1,13 @@
+UseRollOverFakeEvents          1
+FineTstampMode                 1
+AutoReloadPlotsettings         1
+AutoRestartOnCfgChange         1
+ImmediateStart                 1
+CheckHeaderErrorBit            0
+HistoAutoSave                  60  # seconds
+MaxOutputFileDataSize          2048
+ZCcorr_Ncnt                    262144
+Windows_GnuplotCmd             ..\gnuplot\gnuplot.exe
+Linux_GnuplotCmd               gnuplot
+
+

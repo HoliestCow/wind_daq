@@ -1,0 +1,134 @@
+########################################################################################
+# Typical Config File for LaBr3 detectors
+########################################################################################
+
+# Board Connection Parameters:
+[BOARD 0]  Open USB 0 0
+
+
+[COMMON]
+
+#---------------------------------------------------------------------------------------
+# Acquisition Mode (MIXED, LIST, OFF_LINE)
+#---------------------------------------------------------------------------------------
+AcquisitionMode               MIXED
+RecordLength                  1000
+PreTrigger                    200
+
+#---------------------------------------------------------------------------------------
+# Stop Criteria (0 = infinite)
+#---------------------------------------------------------------------------------------
+StopOnTime                    0
+StopOnLiveTime                0
+StopOnTotalEvents             0
+StopOnEnergyEvents            0
+StopOnTimeEvents              0
+
+#---------------------------------------------------------------------------------------
+# Output File Saving
+#---------------------------------------------------------------------------------------
+SaveLists                     0
+SaveRawData                   0
+SaveHistograms                3
+SaveWaveforms                 0
+SaveRunInfo                   1
+HistoOutputFormat             ASCII_1COL
+DataFilePath                  DataFiles
+AutoRunNumber                 0
+OutFileTimeStampUnit          0  # 0=ps, 1=ns, 2=us, 3=ms, 4=s
+
+#---------------------------------------------------------------------------------------
+# Front Panel I/O
+#---------------------------------------------------------------------------------------
+FPIOtype                      NIM
+StartMode                     INDEP_SW
+SyncinMode                    TSTAMP_RESET
+TrginMode                     EXTTRG_ONLY
+VetoWindow                    0
+TrgoutMode                    CHANNEL_TRIGGERS
+TrgoutMask                    FF
+
+#---------------------------------------------------------------------------------------
+# On-board Coincidences
+#---------------------------------------------------------------------------------------
+CoincMode                     DISABLED
+MajorityLevel                 3
+CoincWindow                   100
+
+#---------------------------------------------------------------------------------------
+# Input Settings
+#---------------------------------------------------------------------------------------
+EnableInput                   1
+PulsePolarity                 NEGATIVE
+BaselineDCoffset              10
+InputDynamicRange             1
+
+#---------------------------------------------------------------------------------------
+# Discriminator and Trigger
+#---------------------------------------------------------------------------------------
+DiscrMode                     CFD_PSD
+TriggerThreshold              50
+TrgHoldOff                    5
+TTFsmoothing                  2
+CFDdelay                      10
+CFDfraction                   2
+
+#---------------------------------------------------------------------------------------
+# Gated Charge Integrator (DPP_PSD or DPP_CI only)
+#---------------------------------------------------------------------------------------
+GateWidth                     100
+ShortGateWidth                40
+PreGate                       80
+PileUpMode                    0
+PurGap                        10
+NSBaseline                    2
+
+#---------------------------------------------------------------------------------------
+# Energy Spectra
+#---------------------------------------------------------------------------------------
+EHnbin                        4K
+EnergyCoarseGain              1
+EnergyFineGain                1.0000
+EnergyLCut                    1000
+EnergyUCut                    1500
+EnableEnergyFilter            0
+ECalibration                  0 1.0 0 0
+
+#---------------------------------------------------------------------------------------
+# Timing Spectrum
+#---------------------------------------------------------------------------------------
+THmin                         -10
+THmax                         10
+THnbin                        1K
+TOFstartChannel               0
+TOFstartBoard                 0
+TstampOffset                  0
+TimeCorrelWindow              100
+EnableTimeCorrelFilter        0
+TspectrumMode                 START_STOP
+
+#---------------------------------------------------------------------------------------
+# PSD filter
+#---------------------------------------------------------------------------------------
+PsdLCut                       0.00
+PsdUCut                       1.00
+EnablePSDFilter               0
+
+#---------------------------------------------------------------------------------------
+# MCS spectrum
+#---------------------------------------------------------------------------------------
+MCSHnbin                      1K
+DwellTime                     100000
+
+
+#***************************************************************************************
+[BOARD 0]
+#***************************************************************************************
+[CHANNEL 0]
+[CHANNEL 1]
+[CHANNEL 2]
+[CHANNEL 3]
+[CHANNEL 4]
+[CHANNEL 5]
+[CHANNEL 6]
+[CHANNEL 7]

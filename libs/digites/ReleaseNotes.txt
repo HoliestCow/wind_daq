@@ -1,0 +1,160 @@
+*************************************************************************************************************************
+  CAEN SpA - Front End Division
+  Via Vetraia, 11 - 55049 - Viareggio ITALY
+  +390594388398 - www.caen.it
+*************************************************************************************************************************
+
+Only the main releases of digiTES are documented in this note. Intermediate releases are not reported, but their 
+modifications are added to the notes of the next documented release.
+
+
+-------------------------------------------------------------------------------------------------------------------------
+Revision 4.5.8 – October 10th, 2017
+-------------------------------------------------------------------------------------------------------------------------
+- Added EventBuildMode parameter that determines the criteria for the event selection at the output of the queues.
+  Options are SINGLES (no selection), CHREF_AND_ANY (reference ch in coincidence with any other), CLOVER (any combination
+  in a group of 4 channels within a Time window)
+- Added virtual channels taking results of the event building (e.g. add back of clover detectors)
+- Discontinued parameter EnableTimeCorrelFilter (replaced by EventBuildMode=CHREF_AND_ANY)
+- Added List files with Built Events (bit 2 of SaveLists parameter)
+- Added parameter "HeaderInListFiles" to add a header in the list files (containing ch/brd number, format, etc...)
+- Virtual Board
+- Added quadratic and cubic Energy calibration: use "Ecalibration c0 c1 c2 c3" (c2, c3 optional) intstead of 
+  Ecalibration_m and Ecalibration_q (deprecated but still working for backward compatibility)
+
+-------------------------------------------------------------------------------------------------------------------------
+Revision 4.5.3 – July 5th, 2017
+-------------------------------------------------------------------------------------------------------------------------
+- Added parameter 'SaveFlagsInListFiles' to save flags (4th column) in the output list files. The value of the 
+  parameter is an hexadecimal number used as a mask for the flags (0 => don't save flags)
+- Bug fixes in 'WriteRegister' commands (direct access to register) 
+- Added command: WriteRegisterBits RegAddr StartBit StopBit Value (RegAddr, Value = hex; StartBit, StopBit = dec)
+- Added Cfg option 'ZCcalibFileName' to change the file name of the ZC calibration (by default, the file name is read
+  from the SysVars file)
+- Added Cfg option 'ZCcalibRun'; when 1, the run performs the ZC calibration and generates the ZC calibration file 
+  (helpful in job scheduling with different calibrations)
+- Added Cfg option 'EventBuffering' to set the number of events buffered in each memory block. 0 means autoset.
+- Added menu option (key 'C') to import/export the configuration file from/to a list of predefined files
+- Added menu option (key 'E') to open the configuration file with a predefinited editor ('notepad' for Windows and
+  'gedit' for Linux)
+- Added menu option (key 'i') to toggle between instantaneous and integrated statistics
+- Added menu option (key 'I') to enter the run description (string with max. 200 characters)
+- Reviewed Start/Stop commands (keys 's' and 'S'). 'S' can now be used to restart the run and assign a specific
+  run number and description.
+- Added parameter 'SaveRunInfo' to save a text file (Run%d_info.txt) at the end of the run that contains run number, 
+  description, connected boards, FW revision, statistics on channel basis, configuration file, etc...
+- Added Jobs scheduling with parameter sweep: series of runs with preset time or num of events; for each run, use a 
+  specific subset of settings. Very useful to find the best setting of some parameters
+- Added possibility to specify the time unit for the timing parameters in the config file (e.g. TrapRiseTime = 4.1 us
+  intead of 4100). Allowed units are ps, ns, us, ms, s. Time value can be a float number
+- Updated gnuplot version to 5.0. The sysvars.txt file must contain path+command to call gnuplot; for instance:
+  "Windows_GnuplotCmd  C:\Program Files\gnuplot\bin\gnuplot.exe" for windows
+  "Linux_GnuplotCmd  gnuplot" for Linux
+- Added samples spectrum (histogram of the waveform samples); press 'j' to plot it. This histogram grows only when it
+  is active on the plot. 
+- Added EMULATOR mode (paramter ACQ_MODE): generate an emulated pulse for testing and debugging of the SW
+- General cleanup of the source code, console output and log files
+- Bug Fix: scanf without echo for Linux version 
+
+-------------------------------------------------------------------------------------------------------------------------
+Revision 4.3.3 – January 12th, 2017
+-------------------------------------------------------------------------------------------------------------------------
+- Added HV control panel (press 'H' in the main menu to open it)
+- Started integration of the Hexagon MCA (very preliminary)
+- Added support for the model DT5781 
+- Added parameter OutFileTimeStampUnit: 0=ps, 1=ns, 2=us, 3=ms, 4=s
+- Automatic restart when the main config file is changed (set to 1 the system variable AutoRestartOnCfgChange in the 
+  file sysvars.txt).
+- Added scatter plot with E vs deltaE (E on even channels, deltaE on the corresponding odd channel). Added parameter 
+  ScatterPlotMode with three options: PSD_HORIZONTAL, PSD_DIAGONAL and E_VS_DELTAE
+- Added FFT in waveform viewer: press 'F' to see FFT, press 'F' again to set the averaging (mean of N traces), press 'w'
+  to go back to waveform plot
+- Added parameter ChargeLLD: hardware zero suppression based on collected charge. Events with charge < Qthr are 
+  discarded (not saved to the memory board). Available on DPP_PSD for x725 and x730 with Fw Rev >= 136.9.
+- Added parameter ConfirmFileOverwrite; when set (=1), the program asks the user to confirm if the output file already 
+  present can be overwritten
+
+
+-------------------------------------------------------------------------------------------------------------------------
+Revision 4.3.0 – July 26th, 2016
+-------------------------------------------------------------------------------------------------------------------------
+- Improved/added management of the flags in the event data read from the board; ticks for trigger counters (total, lost), 
+  saturation, dead time
+- Bug fix in the event selection for the SW Time Correlation (parameter 'TimeCorrelWindow')
+- Reviewed statistics calculation and logging  
+- Added timeout in the time correletion (SW event selection) to prevent one empty channel (not giving data) to hang 
+  the other channels
+- Added option for the timing spectrum: TspectrumMode, START_STOP for deltaT between one reference channel and the 
+  others, INTERVALS for deltaT between the pulses in the same channel (poissonian distribution)
+- Added option for the statistics update time (StatUpdateTime)  
+- Auto rescale plots when changing between types (energy, time, psd...)
+- Bug fix in EnergyGain for PSD, added more options
+- More WARNINGS reported in the message log
+- Added Readme.txt and ReleaseNotes.txt (this file)
+- Optimized CFD zero crossing calibration; implemented also in Linux (provided as an object ZCcal.o)
+- Fixes in Makefile for Linux
+- Separated distribution for Windows and Linux
+- Minor changes, improvements and bug fixes
+
+-------------------------------------------------------------------------------------------------------------------------
+Revision 4.2.6 – June 16th, 2016
+-------------------------------------------------------------------------------------------------------------------------
+- Added Histograms.cpp and .h to manage histogram building with dedicated functions
+- Added module Statistics.cpp and .h to manage the calculation of the statistics (count rates, dead time, 
+  saturation, etc...)
+- Added preliminary version of the CFD zero crossing calibration to improve timing resolution (the ZC calibration 
+  algorithm is implemented in the ZCcal module provided as a static library .lib for Windows; not implemented for Linux)
+- Reviewed options for the synchronization between boards (start/stop) and for the use of the LEMO 
+  connectors (TRGIN, SIN/GPI, TRGOUT/GPO)
+- Reviewed coincidence modes and relevant parameters  
+- Added options for the VETO
+- Added overflow and underflow counts in histograms
+- CoarseGain in Energy spectrum (replacing Charge Sensitivity for PSD/CI)
+- Added log message (file MsgLog.txt)
+- Added system variables (struct SysVars) initialized from the file 'sysvars.txt' (must be in the same directory 
+  of digiTES)
+- Changed statistics reported in the console log during the run; added information about count rate at board input, 
+  from board to computer and after selection (events going into the histograms)
+- Changes in parameters of the configuration files:  
+   * Discontinued: TriggerMode, RunNumberInDataFiles, DelayLine, EHmin, EHmax, EnergyGain.
+   * Modified: AcquisitionMode, StartMode, TrgoutMode, CoincMode, DiscrMode.
+   * Added: TrginMode, SyncinMode, InputDataFilePath, LoopInputFile, EnableZCcalibr, SmoothedForCharge, VetoWindow, 
+     TstampOffset, EnergyCoarseGain, EnergyFineGain
+- Several bug fixes
+
+-------------------------------------------------------------------------------------------------------------------------
+Revision 4.1.3 – November 30th, 2015
+-------------------------------------------------------------------------------------------------------------------------
+- Added display of the board serial number when connected to the board at starting up
+- Modified run-delay for the sync start
+- Added option PAIR0_PROPAG2OTHERS for the TriggerMode parameter. This allows the self-triggers in the pair0 of the 
+  730/725 models to be propagated to the other channels of the board. (It should work similarly for the other models 
+  considering channel 0 instead of pair 0, but this was not tested)
+- Added options in DiscrMode and use names instead of numbers to set them.
+- Bug Fix: pulse polarity setting with Standard FW didn’t work
+- Corrected names in the waveform traces of the PHA and PSD_751
+- Added parameter ZeroVoltLevel
+- Added parameter TrgoutMask to enable/disable the channel self-triggers to the generation of the trgout signal
+- Time stamp divided in ‘coarse’ and ‘fine’ in the waveform files
+
+-------------------------------------------------------------------------------------------------------------------------
+Revision 4.0 – October 16th, 2015
+-------------------------------------------------------------------------------------------------------------------------
+- General review of the project: changed some source file names, added header files (.h) for each module, moved 
+  functions and global variables to make a cleaner organization of the source files.
+- Added large memory buffer to keep the waveforms until the events are consumed by the final analyzer in digiTES.cpp
+
+-------------------------------------------------------------------------------------------------------------------------
+Revision 3.2 – October 9th, 2015
+-------------------------------------------------------------------------------------------------------------------------
+- Added support for the x725 series (250 MSps / 16bit)
+- Added support for standard firmware (non DPP): event data contain one waveform and the trigger time stamp (no energy, 
+  no PSD). It is however possible to use the Software Waveform Processor to apply a run-time DPP algorithm and extract 
+  precise time stamp (interpolated CFD), energy (charge) and PSD. Tested with x725, x730 and x751 only.
+- Fixed bug in RawData saving
+- Added sleep in the readout loop when the board is found empty several times (to save CPU usage); added flush command 
+  if the empty condition persists.
+- Changed management of the off-line runs
+- Reviewed Waveform saving to output files
+
+
