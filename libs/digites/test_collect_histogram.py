@@ -1,6 +1,6 @@
 
 import numpy as np
-from caenlib import measurement_spool
+from caenlib import get_histograms
 import threading
 import time
 import matplotlib.pyplot as plt
@@ -21,14 +21,16 @@ def main():
     long_data_thru_time = np.zeros(time_array_size, dtype=np.uint32)
     try:
         t1 = threading.Thread(target=measurement_spool,
-                              args=(state, short_data, long_data, short_data.size, short_data.shape))
+                              args=(state))
         t1.start()
+        time.sleep(15)  # sleep for ten seconds so the thing initializes properly.
         # time.sleep(measurement_time)
         for i in range(measurement_time):
             time.sleep(1)
+            get_histograms(long_data)
             long_data_thru_time = np.concatenate((long_data_thru_time, long_data.reshape((long_data.shape[0], long_data.shape[1], 1))), axis=2)
         state[0] = 2
-        time.sleep(1)
+        time.sleep(2)
         state[0] = 3
         time.sleep(2)
         state[0] = 0

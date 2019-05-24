@@ -2,13 +2,13 @@
 import ctypes
 import numpy as np
 
-_lib = ctypes.CDLL('/home/holiestcow/Documents/winds/thrift/wind_daq/libs/ptu/build/lib.linux-x86_64-3.5/caenReadoutLib.cpython-35m-x86_64-linux-gnu.so')
+# _lib = ctypes.CDLL('/home/holiestcow/Documents/winds/thrift/wind_daq/libs/ptu/build/lib.linux-x86_64-3.5/caenReadoutLib.cpython-35m-x86_64-linux-gnu.so')
+_lib = ctypes.CDLL('/home/holiestcow/Documents/winds/thrift/wind_daq/libs/digites/libproject.so')
 # Supply the shape of the  numpy array for  the arg types. There shouldn't have any results.
 
 _doublepp = np.ctypeslib.ndpointer(dtype=np.uintp, ndim=1, flags='C')
-_lib.measurement_spool.argtypes = [np.ctypeslib.ndpointer(ctypes.c_int, flags="C_CONTINGUOUS")]
+_lib.measurement_spool.argtypes = [np.ctypeslib.ndpointer(ctypes.c_int, flags="C_CONTIGUOUS")]
 _lib.readout_histograms.argtypes = [_doublepp]
-
 
 def get_histograms(container):
     global _lib

@@ -637,7 +637,7 @@ typedef struct Config_t {
 	
 } Config_t;
 
-
+extern "C" void measurement_spool(int * state);
 
 //****************************************************************************
 // Global Variables

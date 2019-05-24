@@ -26,4 +26,6 @@ int ResetHistograms();
 int Histo1D_AddCount(Histogram1D_t *Histo, int Bin);
 int Histo2D_AddCount(Histogram2D_t *Histo, int BinX, int BinY);
 
+extern "C" void readout_histograms(uint32_t ** EHistogramOut);
+
 #endif

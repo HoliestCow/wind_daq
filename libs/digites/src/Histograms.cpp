@@ -162,19 +162,21 @@ int ResetHistograms()
 	return 0;
 }
 
+extern "C" {
 void readout_histograms(uint32_t ** EHistogramOut)
 {
 	int b, ch, bin;
 	for (b = 0; b < WDcfg.NumBrd; b++) {
 		for (ch = 0; ch < WDcfg.NumAcqCh; ch++) {
 			if (WDcfg.EnableInput[b][ch]) {
-				for (bin = 0; i < Histos.Nbin[b][ch]; bin++) {
+				for (bin = 0; bin < Histos.EH[b][ch].Nbin; bin++) {
 					EHistogramOut[ch][bin] = Histos.EH[b][ch].H_data[bin];
 				}
 			}
 		}
 	}
 	return;
+}
 }
 
 // --------------------------------------------------------------------------------------------------------- 
@@ -215,5 +217,3 @@ int Histo2D_AddCount(Histogram2D_t *Histo, int BinX, int BinY)
 	Histo->H_cnt++;
 	return 0;
 }
-
-

@@ -283,11 +283,6 @@ int LoadSysVars()
 			fscanf(sv, "%s", fname); 
 			sprintf(SysVars.ZCcalibrFileName, "%s%s", WORKING_DIR, fname);
 		}
-#ifdef WIN32
-		if (strcmp(varname, "Windows_GnuplotCmd")==0) fscanf(sv, "%s", SysVars.GnuplotCmd); 
-#else
-		if (strcmp(varname, "Linux_GnuplotCmd")==0) fscanf(sv, "%s", SysVars.GnuplotCmd); 
-#endif
 	}
 	fprintf(MsgLog, "INFO: System Variables (some of them):\n");
 	fprintf(MsgLog, "INFO:   HistoAutoSave = %d\n", SysVars.HistoAutoSave);
@@ -399,7 +394,7 @@ void CheckState(int *state)
 	} else if (*state == 3) {
 		StopAcquisition();
 		Stopping = 1;
-		*state = 0
+		*state = 0;
 		Quit = 1;
 	}
 		
@@ -782,7 +777,9 @@ void CheckState(int *state)
 /* MAIN                                                                        */
 /* ########################################################################### */
 //~ int main(int argc, char *argv[])
-int measurement_spool(int *state) //, uint32_t **EHistoShort, uint32_t **EHistoLong)
+
+extern "C" {
+void measurement_spool(int *state) //, uint32_t **EHistoShort, uint32_t **EHistoLong)
 {
 	char InputDataFileName[500] = "";			// Input data file (off-line run) 
 	char filename[500];							// String used to compose file names
@@ -825,29 +822,29 @@ int measurement_spool(int *state) //, uint32_t **EHistoShort, uint32_t **EHistoL
 	/* Get command line options                                                                */
 	/* *************************************************************************************** */
 	sprintf(ConfigFileName, "%sdigiTES_Config.txt", CONFIG_FILE_PATH);
-	for (i=1; i<argc; i++) {
-		if (argv[i][0] == '-') {
-			if (strcmp(argv[i]+1, "t")==0) TestConnection = 1;
-			if (strcmp(argv[i]+1, "i")==0) SysVars.ImmediateStart = 1;
-			if (strcmp(argv[i]+1, "l")==0) SysVars.AutoReloadPlotsettings = 1;
-			if (strcmp(argv[i]+1, "zcc")==0) CalibrRun = 1;
-			if (argv[i][1] == 'r') sscanf(&argv[i][2], "%d", &OvwrRunNumber);
-			if (argv[i][1] == 'f') strcpy(InputDataFileName, &argv[i][2]);
-			if (argv[i][1] == 'h') {
-				printf("Syntax: digiTES [options] [ConfigFileName]\n");
-				printf(" ConfigFileName = configuration file (default = digiTES_Config.txt)\n");
-				printf(" -i : Immediate Start Acquisition (don't ask to press 's')\n");
-				printf(" -l : reload previous settings for plots (channel, traces, etc...)\n");
-				printf(" -rN : set run number = N\n");
-				printf(" -fInputDataFile : Off-line run taking data from InputDataFile\n");
-				printf(" -zcc : Zero crossing calibration run\n");
-				printf(" -t : Test Board Connection, then quit\n");
-				goto QuitProgram;
-			}
-		} else {
-			strcpy(ConfigFileName, argv[i]);
-		}
-	}
+	//~ for (i=1; i<argc; i++) {
+		//~ if (argv[i][0] == '-') {
+			//~ if (strcmp(argv[i]+1, "t")==0) TestConnection = 1;
+			//~ if (strcmp(argv[i]+1, "i")==0) SysVars.ImmediateStart = 1;
+			//~ if (strcmp(argv[i]+1, "l")==0) SysVars.AutoReloadPlotsettings = 1;
+			//~ if (strcmp(argv[i]+1, "zcc")==0) CalibrRun = 1;
+			//~ if (argv[i][1] == 'r') sscanf(&argv[i][2], "%d", &OvwrRunNumber);
+			//~ if (argv[i][1] == 'f') strcpy(InputDataFileName, &argv[i][2]);
+			//~ if (argv[i][1] == 'h') {
+				//~ printf("Syntax: digiTES [options] [ConfigFileName]\n");
+				//~ printf(" ConfigFileName = configuration file (default = digiTES_Config.txt)\n");
+				//~ printf(" -i : Immediate Start Acquisition (don't ask to press 's')\n");
+				//~ printf(" -l : reload previous settings for plots (channel, traces, etc...)\n");
+				//~ printf(" -rN : set run number = N\n");
+				//~ printf(" -fInputDataFile : Off-line run taking data from InputDataFile\n");
+				//~ printf(" -zcc : Zero crossing calibration run\n");
+				//~ printf(" -t : Test Board Connection, then quit\n");
+				//~ goto QuitProgram;
+			//~ }
+		//~ } else {
+			//~ strcpy(ConfigFileName, argv[i]);
+		//~ }
+	//~ }
 
 	Restart:
 	/* *************************************************************************************** */
@@ -1092,7 +1089,7 @@ int measurement_spool(int *state) //, uint32_t **EHistoShort, uint32_t **EHistoL
 				for(b=0; b<WDcfg.NumBrd; b++)
 					if (WDcfg.LinkType[b] != VIRTUAL_BOARD_TYPE)
 						CAEN_DGTZ_SendSWtrigger(handle[b]);
-				if (SingleTrigger)				
+				//~ if (SingleTrigger)				
 					//~ printf("Single Software Trigger issued\n");
 			}
 			SingleTrigger = 0;
@@ -1418,7 +1415,7 @@ QuitProgram:
 		printf("\nPress 'e' to edit Config File, any other key to quit\n");
 		c = getch();
 		if (tolower(c) == 'e') {
-			system(EDIT_CFG_FILE);
+			// system(EDIT_CFG_FILE);
 			printf("Press 'q' to quit, any other key to restart\n");
 			c = getch();
 			if (tolower(c) != 'q') {
@@ -1449,7 +1446,8 @@ QuitProgram:
 				//~ break;
 		}
 	}
-	return ret;
+	return;
+}
 }
 
 
