@@ -7,3 +7,7 @@
 ./WIND-Thrift/
 *.o
 *.png
+*.so
+*.txt
+*.bin
+
