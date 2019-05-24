@@ -6,3 +6,4 @@
 ./WIND-Thrift/gen-py/
 ./WIND-Thrift/
 *.o
+*.png
