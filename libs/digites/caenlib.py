@@ -7,7 +7,7 @@ _lib = ctypes.CDLL('/home/holiestcow/Documents/winds/thrift/wind_daq/libs/digite
 # Supply the shape of the  numpy array for  the arg types. There shouldn't have any results.
 
 _doublepp = np.ctypeslib.ndpointer(dtype=np.uintp, ndim=1, flags='C')
-_lib.measurement_spool.argtypes = [np.ctypeslib.ndpointer(ctypes.c_int, flags="C_CONTIGUOUS")]
+_lib.measurement_spool.argtypes = [ctypes.c_int]
 _lib.readout_histograms.argtypes = [_doublepp]
 
 def get_histograms(container):
@@ -28,4 +28,5 @@ def measurement_spool(state):
     # state = 3 - clean up and jump out of the measurement_spool. Free up the thread.
     global _lib
     _lib.measurement_spool(state)
-    return state
+    print('called')
+    return
