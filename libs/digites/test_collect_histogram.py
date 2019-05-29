@@ -12,7 +12,7 @@ def main():
     nbin = 2**14
     measurement_time = 5  # 60 seconds.
     # measurement_spool(state, short_data, long_data, size)
-    state = np.ndarray([1], dtype=ctypes.c_int)
+    state = np.ndarray([1], dtype=np.int32)
     state[0] = 0
     print(state)
     print(state.shape)

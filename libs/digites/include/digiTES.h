@@ -639,6 +639,8 @@ typedef struct Config_t {
 
 extern "C" void measurement_spool(int * state);
 
+void CheckState(int * state, FILE * filehandle);
+
 //****************************************************************************
 // Global Variables
 //****************************************************************************

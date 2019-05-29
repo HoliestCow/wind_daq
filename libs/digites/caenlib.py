@@ -6,8 +6,8 @@ import numpy as np
 _lib = ctypes.CDLL('./libproject.so')
 # Supply the shape of the  numpy array for  the arg types. There shouldn't have any results.
 
-_doublepp = np.ctypeslib.ndpointer(dtype=np.uintp, ndim=1, flags='C')
-_lib.measurement_spool.argtypes = [ctypes.c_int]
+_doublepp = np.ctypeslib.ndpointer(ctypes.c_int32, flags='C_CONTIGUOUS')
+_lib.measurement_spool.argtypes = [_doublepp]
 _lib.readout_histograms.argtypes = [_doublepp]
 
 def get_histograms(container):
@@ -27,6 +27,7 @@ def measurement_spool(state):
     # state = 2 - stop data Acquisition
     # state = 3 - clean up and jump out of the measurement_spool. Free up the thread.
     global _lib
+    print(state)
     _lib.measurement_spool(state)
     print('called')
     return

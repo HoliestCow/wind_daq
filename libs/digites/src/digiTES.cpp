@@ -373,32 +373,34 @@ void ChannelLogString(int b, int ch, int StatsMode, char *str)
 // keyboard menu
 // ---------------------------------------------------------------------------------------------------------
 // Consider making this CheckState().
-void CheckState(int *state)
+void CheckState(int *state, FILE * logging)
 {
 	char c=0, c1;
 	int ch, b, i, t;
 	CAEN_DGTZ_BoardInfo_t BoardInfo;		
 	char enastring[2][10] = {"DISABLED", "ENABLED"};
 	char cmd[200], ext[10];
-	
+	msg_printf(logging, "before ifs, value is %d\n", *state);
 	if (*state == 1) {
+		msg_printf(logging, "in 1\n");
 		ResetStatistics();
 		StartAcquisition();
 		ClearQueues();
 		AcqRun = 1;
 		*state = 0;
 	} else if (*state == 2) {
+		msg_printf(logging, "in 2\n");
 		StopAcquisition();
 		Stopping = 1;
 		*state = 0;
 	} else if (*state == 3) {
+		msg_printf(logging, "in 3\n");
 		StopAcquisition();
 		Stopping = 1;
 		*state = 0;
 		Quit = 1;
 	}
-		
-		
+	msg_printf(logging, "after ifs\n");
 
 	//~ // Check keyboard
 	//~ if (kbhit()) {
@@ -1062,7 +1064,6 @@ void measurement_spool(int *state) //, uint32_t **EHistoShort, uint32_t **EHisto
 
 	msg_printf(MsgLog, "INFO: Starting Acquisition (Run %d)\n", WDcfg.RunNumber);
 	while(!Quit && !RestartAll) {
-
 		CurrentTime = get_time();
 		if (Failure) goto QuitProgram;
 
@@ -1073,10 +1074,12 @@ void measurement_spool(int *state) //, uint32_t **EHistoShort, uint32_t **EHisto
 		// NOTE: This is where the money is. 
 		// This is where state changes occur.
 		///////////////////////////////////////////////////
+		msg_printf(MsgLog, "Before checkstate\n");
 		if ((CurrentTime - PrevKeybTime) > 200) {
-			CheckState(state);
+			CheckState(state, MsgLog);
 			PrevKeybTime = CurrentTime;
 		}
+		msg_printf(MsgLog, "After checkstate\n");
 
 		// ----------------------------------------------------------------------------------- 
 		// Send a software trigger to each board 
