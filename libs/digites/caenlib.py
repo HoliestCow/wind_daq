@@ -3,7 +3,7 @@ import ctypes
 import numpy as np
 
 # _lib = ctypes.CDLL('/home/holiestcow/Documents/winds/thrift/wind_daq/libs/ptu/build/lib.linux-x86_64-3.5/caenReadoutLib.cpython-35m-x86_64-linux-gnu.so')
-_lib = ctypes.CDLL('/home/holiestcow/Documents/winds/thrift/wind_daq/libs/digites/libproject.so')
+_lib = ctypes.CDLL('./libproject.so')
 # Supply the shape of the  numpy array for  the arg types. There shouldn't have any results.
 
 _doublepp = np.ctypeslib.ndpointer(dtype=np.uintp, ndim=1, flags='C')
