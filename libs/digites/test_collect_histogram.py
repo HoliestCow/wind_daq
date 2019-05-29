@@ -26,7 +26,7 @@ def main():
     try:
         print('in try')
         t1 = threading.Thread(target=measurement_spool,
-                              args=(state))
+                              args=(state,))
         print('assigned')
         t1.start()
         print('started thread')

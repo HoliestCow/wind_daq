@@ -380,7 +380,8 @@ void CheckState(int *state, FILE * logging)
 	CAEN_DGTZ_BoardInfo_t BoardInfo;		
 	char enastring[2][10] = {"DISABLED", "ENABLED"};
 	char cmd[200], ext[10];
-	msg_printf(logging, "before ifs, value is %d\n", *state);
+	msg_printf(logging, "before ifs.\n");
+	printf("Value of state is %d.\n", *state);
 	if (*state == 1) {
 		msg_printf(logging, "in 1\n");
 		ResetStatistics();

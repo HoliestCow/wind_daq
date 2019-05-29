@@ -28,6 +28,7 @@ def measurement_spool(state):
     # state = 3 - clean up and jump out of the measurement_spool. Free up the thread.
     global _lib
     print(state)
+    print(state.shape)
     _lib.measurement_spool(state)
     print('called')
     return
