@@ -8,9 +8,9 @@ import ctypes
 
 
 def main():
-    # nbin = 2 ** 12
-    nbin = 2**14
-    measurement_time = 5  # 60 seconds.
+    nbin = 2 ** 12
+    # nbin = 2**14
+    measurement_time = 10  # 60 seconds.
     # measurement_spool(state, short_data, long_data, size)
     state = np.ndarray([1], dtype=np.int32)
     state[0] = 0
@@ -18,7 +18,7 @@ def main():
     print(state.shape)
     # I have to check if it's always 4. I'm not sure if enabled output will make this fit the number of active channels.
     array_size = (4, nbin)
-    long_data = np.zeros(array_size, dtype=np.uint32)
+    long_data = np.zeros(array_size, dtype=np.int32)
 
     time_array_size = (4, nbin, 1)
 
@@ -35,22 +35,22 @@ def main():
         # time.sleep(measurement_time)
         for i in range(measurement_time):
             time.sleep(1)
+            print('getting histograms')
             get_histograms(long_data)
-            print('grabbed data')
-            long_data_thru_time = np.concatenate((long_data_thru_time, long_data.reshape((long_data.shape[0], long_data.shape[1], 1))), axis=2)
+            print('grabbed data, cps {}'.format(np.sum(long_data, axis=1)))
         state[0] = 2
         time.sleep(2)
         state[0] = 3
         time.sleep(2)
         state[0] = 0
         print('stopping measurement from python')
-        long_data_summed = np.sum(long_data_thru_time, axis=2)
+        long_data_summed = np.sum(long_data_thru_time, axis=1)
         for i in range(long_data_summed.shape[0]):
             fig = plt.figure()
             plt.plot(long_data_summed[i, :])
             plt.xlabel('Channel Number')
             plt.ylabel('Counts')
-            fig.savefig('longdata_histogram_ch{}.png'.format(i))
+            fig.savefig('longdata_cps_ch{}.png'.format(i))
         print("quitting main.py")
         state[0] = 3
         time.sleep(2)

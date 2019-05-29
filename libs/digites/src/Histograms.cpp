@@ -16,6 +16,7 @@
 
 #include "digiTES.h"
 #include "Histograms.h"
+#include "Console.h"
 
 int HistoCreated = 0;
 
@@ -163,14 +164,20 @@ int ResetHistograms()
 }
 
 extern "C" {
-void readout_histograms(uint32_t ** EHistogramOut)
+void readout_histograms(int * EHistogramOut)
 {
-	int b, ch, bin;
+	int b, ch, bin, counter;
+	counter = 0;
+
+	FILE * logfile = fopen("ReadoutLog.txt", "w");
+
 	for (b = 0; b < WDcfg.NumBrd; b++) {
 		for (ch = 0; ch < WDcfg.NumAcqCh; ch++) {
 			if (WDcfg.EnableInput[b][ch]) {
+				msg_printf(logfile, "reading b %d ch %d with %d bins.\n", b, ch, Histos.EH[b][ch].Nbin);
 				for (bin = 0; bin < Histos.EH[b][ch].Nbin; bin++) {
-					EHistogramOut[ch][bin] = Histos.EH[b][ch].H_data[bin];
+					EHistogramOut[counter] = Histos.EH[b][ch].H_data[bin];
+					counter++;
 				}
 			}
 		}

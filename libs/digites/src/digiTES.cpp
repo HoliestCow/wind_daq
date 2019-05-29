@@ -93,7 +93,6 @@ int ImpExpCfgFile()
 	char *fp, buff[500];
 	int nf=0, i;
 	FILE *cfglist, *ncf, *cf;
-
 	cfglist = fopen(cflname, "r");
 	if (cfglist == NULL) {
 		printf("Can't find file '%s' with the config file list\n", cflname);
@@ -380,29 +379,20 @@ void CheckState(int *state, FILE * logging)
 	CAEN_DGTZ_BoardInfo_t BoardInfo;		
 	char enastring[2][10] = {"DISABLED", "ENABLED"};
 	char cmd[200], ext[10];
-	msg_printf(logging, "before ifs.\n");
-	printf("Value of state is %d.\n", *state);
 	if (*state == 1) {
-		msg_printf(logging, "in 1\n");
 		ResetStatistics();
 		StartAcquisition();
 		ClearQueues();
 		AcqRun = 1;
 		*state = 0;
 	} else if (*state == 2) {
-		msg_printf(logging, "in 2\n");
-		StopAcquisition();
 		Stopping = 1;
 		*state = 0;
 	} else if (*state == 3) {
-		msg_printf(logging, "in 3\n");
-		StopAcquisition();
 		Stopping = 1;
 		*state = 0;
 		Quit = 1;
 	}
-	msg_printf(logging, "after ifs\n");
-
 	//~ // Check keyboard
 	//~ if (kbhit()) {
 		//~ c = getch();
@@ -1075,13 +1065,11 @@ void measurement_spool(int *state) //, uint32_t **EHistoShort, uint32_t **EHisto
 		// NOTE: This is where the money is. 
 		// This is where state changes occur.
 		///////////////////////////////////////////////////
-		msg_printf(MsgLog, "Before checkstate\n");
 		if ((CurrentTime - PrevKeybTime) > 200) {
 			CheckState(state, MsgLog);
 			PrevKeybTime = CurrentTime;
 		}
-		msg_printf(MsgLog, "After checkstate\n");
-
+		
 		// ----------------------------------------------------------------------------------- 
 		// Send a software trigger to each board 
 		// ----------------------------------------------------------------------------------- 
@@ -1205,7 +1193,7 @@ void measurement_spool(int *state) //, uint32_t **EHistoShort, uint32_t **EHisto
 			SaveAllHistograms();
 			Stopping = 0;
 			AcqRun = 0;
-			//~ printf("Acquisition Stopped\n");
+			printf("Acquisition Stopped\n");
 		}
 		for(b=0; b<WDcfg.NumBrd; b++) {
 			for(ch=0; ch<WDcfg.NumAcqCh; ch++) {
@@ -1232,7 +1220,7 @@ void measurement_spool(int *state) //, uint32_t **EHistoShort, uint32_t **EHisto
 				}
 			}
 		}
-		
+
 		///////////////////////////////////////////////////
 		// NOTE: Cut out all the analyzing of events.
 		///////////////////////////////////////////////////
@@ -1380,15 +1368,15 @@ void measurement_spool(int *state) //, uint32_t **EHistoShort, uint32_t **EHisto
 	} // End of readout loop
 
 	UpdateStatistics(CurrentTime);
-	if (WDcfg.SaveRunInfo) SaveRunInfo();
-
+	// if (WDcfg.SaveRunInfo) SaveRunInfo();
+        msg_printf(MsgLog, "Updated statistics.\n");
 	SaveAllHistograms();
 	if (WDcfg.CalibrationRun) {
 		ZCcal_SaveCorrectionTables(SysVars.ZCcalibrFileName);
 		msg_printf(MsgLog, "INFO: Saving ZCcalibration file %s\n", SysVars.ZCcalibrFileName);
 	}
 	ExitSleep = 0;
-
+        msg_printf(MsgLog, "quitting procedure now.\n");
 QuitProgram:
 	/* stop the acquisition, close the device and free the buffers */
 	if (AcqRun) {
