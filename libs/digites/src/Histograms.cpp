@@ -170,6 +170,7 @@ void readout_histograms(int * EHistogramOut)
 {
 	int b, ch, bin, counter;
 	counter = 0;
+	int * debugCounter[4];
 
 	FILE * logfile = fopen("ReadoutLog.txt", "w");
 
@@ -180,7 +181,9 @@ void readout_histograms(int * EHistogramOut)
 				for (bin = 0; bin < Histos.EH[b][ch].Nbin; bin++) {
 					EHistogramOut[counter] = Histos.EH[b][ch].H_data[bin];
 					counter++;
+					debugCounter[ch] += Histos.EH[b][ch].H_data[bin];
 				}
+				msg_printf(logfile, "counts = %d.\n", debugCounter[ch]);
 			}
 		}
 	}
