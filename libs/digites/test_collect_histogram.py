@@ -6,10 +6,18 @@ import time
 import matplotlib.pyplot as plt
 import ctypes
 
+def construct_histogram(data, channelnumber, binnumber);
+    container = np.zeros((channelnumber, binnumber))
+    for i in range(channelnumber):
+        for j in range(binnumber):
+            container[i, j] = data[(i * channelnumber) + binnumber]
+    return container
+
 
 def main():
     nbin = 2 ** 12
-    # nbin = 2**14
+    # nbin = 2 ** 14
+    nchannel = 4
     measurement_time = 10  # 60 seconds.
     # measurement_spool(state, short_data, long_data, size)
     state = np.ndarray([1], dtype=np.int32)
@@ -17,10 +25,11 @@ def main():
     print(state)
     print(state.shape)
     # I have to check if it's always 4. I'm not sure if enabled output will make this fit the number of active channels.
-    array_size = (4, nbin)
+    # array_size = (4, nbin)
+    array_size = (nchannel * nbin, )
     long_data = np.zeros(array_size, dtype=np.int32)
 
-    time_array_size = (4, nbin, 1)
+    time_array_size = (nchannel, nbin, 1)
 
     long_data_thru_time = np.zeros(time_array_size, dtype=np.uint32)
     try:
@@ -37,14 +46,16 @@ def main():
             time.sleep(1)
             print('getting histograms')
             get_histograms(long_data)
-            print('grabbed data, cps {}'.format(np.sum(long_data, axis=1)))
+            lmao = construct_histograms(long_data)
+            print('grabbed data, cps {}'.format(np.sum(lmao, axis=1)))
+            long_data_thru_time = np.concatenate((long_data_thru_time, lmao.reshape(time_array_size)), axis=2)
         state[0] = 2
         time.sleep(2)
         state[0] = 3
         time.sleep(2)
         state[0] = 0
         print('stopping measurement from python')
-        long_data_summed = np.sum(long_data_thru_time, axis=1)
+        long_data_summed = np.sum(long_data_thru_time, axis=2)
         for i in range(long_data_summed.shape[0]):
             fig = plt.figure()
             plt.plot(long_data_summed[i, :])
