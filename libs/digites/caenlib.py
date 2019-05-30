@@ -10,7 +10,12 @@ _doublepp = np.ctypeslib.ndpointer(ctypes.c_int32, flags='C_CONTIGUOUS')
 _lib.measurement_spool.argtypes = [_doublepp]
 _lib.readout_histograms.argtypes = [_doublepp]
 
-def get_histograms(pointer):
+def reset_histograms():
+    global _lib
+    _lib.ResetHistograms()
+    return
+
+def update_histograms(pointer):
     global _lib
     # containerpp = (container.__array_interface__['data'][0] +
     #              np.arange(container.shape[0])*container.strides[0]).astype(np.uintp)

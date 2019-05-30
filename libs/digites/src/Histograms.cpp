@@ -145,6 +145,7 @@ int DestroyHistograms()
 // Description: Reset the histograms
 // Return:		0=OK, -1=error
 // --------------------------------------------------------------------------------------------------------- 
+extern "C" {
 int ResetHistograms()
 {
 	int b, ch;
@@ -161,6 +162,7 @@ int ResetHistograms()
 		}
 	}
 	return 0;
+}
 }
 
 extern "C" {

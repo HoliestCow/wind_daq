@@ -1180,11 +1180,11 @@ void measurement_spool(int *state) //, uint32_t **EHistoShort, uint32_t **EHisto
 		// Probably reset the histogram array every second, while 
 		// relying on Python to readout the pointer arrays every second.
 		////////////////////////////////////////////////////////
-		if (ElapsedTime > 1000) 
-		{
-			ResetHistograms();
-			PrevLogTime = CurrentTime;
-		}
+		// if (ElapsedTime > 1000) 
+		// {
+		// 	ResetHistograms();
+		// 	PrevLogTime = CurrentTime;
+		// }
 
 		// ----------------------------------------------------------------------------------- 
 		// Check stopping criteria 

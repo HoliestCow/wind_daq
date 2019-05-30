@@ -1,6 +1,6 @@
 
 import numpy as np
-from caenlib import get_histograms, measurement_spool
+from caenlib import update_histograms, measurement_spool, reset_histograms
 import threading
 import time
 import matplotlib.pyplot as plt
@@ -49,6 +49,7 @@ def main():
             lmao = construct_histograms(long_data)
             print('grabbed data, cps {}'.format(np.sum(lmao, axis=1)))
             long_data_thru_time = np.concatenate((long_data_thru_time, lmao.reshape(time_array_size)), axis=2)
+            reset_histograms()
         state[0] = 2
         time.sleep(2)
         state[0] = 3
