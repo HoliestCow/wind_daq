@@ -170,25 +170,18 @@ void readout_histograms(int * EHistogramOut)
 {
 	int b, ch, bin, counter;
 	counter = 0;
-	int debugCounter[8];
-	int debugCounter2[8];
 
 	FILE * logfile = fopen("ReadoutLog.txt", "w");
 
 	for (b = 0; b < WDcfg.NumBrd; b++) {
 		for (ch = 0; ch < WDcfg.NumAcqCh; ch++) {
 			if (WDcfg.EnableInput[b][ch]) {
-				msg_printf(logfile, "reading b %d ch %d with %d bins.\n", b, ch, Histos.EH[b][ch].Nbin);
 				debugCounter[ch] = 0;
 				debugCounter2[ch] = 0;
 				for (bin = 0; bin < Histos.EH[b][ch].Nbin; bin++) {
 					EHistogramOut[counter] = Histos.EH[b][ch].H_data[bin];
 					counter++;
-					// debugCounter[ch] += Histos.EH[b][ch].H_data[bin];
-					debugCounter2[ch] += EHistogramOut[counter];
 				}
-				debugCounter[ch] = Histos.EH[b][ch].H_cnt;
-				msg_printf(logfile, "counts = %d, %d.\n", debugCounter[ch], debugCounter2[ch]);
 			}
 		}
 	}
