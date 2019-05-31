@@ -1221,109 +1221,105 @@ void measurement_spool(int *state) //, uint32_t **EHistoShort, uint32_t **EHisto
 			}
 		}
 
-		///////////////////////////////////////////////////
-		// NOTE: Cut out all the analyzing of events.
-		///////////////////////////////////////////////////
+		// ----------------------------------------------------------------------------------- 
+		// Analyze Events data 
+		// ----------------------------------------------------------------------------------- 
+		if (GetBuiltEvents(evnt, NumEv) > 0) {  // Get built events
+			NoData = 0;
 
-		//~ // ----------------------------------------------------------------------------------- 
-		//~ // Analyze Events data 
-		//~ // ----------------------------------------------------------------------------------- 
-		//~ if (GetBuiltEvents(evnt, NumEv) > 0) {  // Get built events
-			//~ NoData = 0;
+			if ((WDcfg.SaveLists & SAVELIST_BUILTEVENTS) && (WDcfg.BuildMode != EVBUILD_NONE)) 
+				SaveBuiltEventsList(evnt, NumEv);
 
-			//~ if ((WDcfg.SaveLists & SAVELIST_BUILTEVENTS) && (WDcfg.BuildMode != EVBUILD_NONE)) 
-				//~ SaveBuiltEventsList(evnt, NumEv);
+			for(b=0; b<WDcfg.NumBrd; b++) {
+				for(ch=0; ch<WDcfg.NumAcqCh; ch++) {
+					int BrdRef = WDcfg.TOFstartBoard;
+					int ChRef = WDcfg.TOFstartChannel;
+					int BadEvent = 0;
+					int Ebin;
+					uint16_t psdbin, bx, by;
 
-			//~ for(b=0; b<WDcfg.NumBrd; b++) {
-				//~ for(ch=0; ch<WDcfg.NumAcqCh; ch++) {
-					//~ int BrdRef = WDcfg.TOFstartBoard;
-					//~ int ChRef = WDcfg.TOFstartChannel;
-					//~ int BadEvent = 0;
-					//~ int Ebin;
-					//~ uint16_t psdbin, bx, by;
+					if (NumEv[b][ch] == 0)  // no data from this channel
+						continue;
+					if (StopCh[b][ch]) { // single channel stopped: data are still coming, but they are discarded
+						Stats.EvRead_cnt[b][ch]--;  
+						FreeWaveform(evnt[b][ch].Waveforms);
+						continue;
+					}
 
-					//~ if (NumEv[b][ch] == 0)  // no data from this channel
-						//~ continue;
-					//~ if (StopCh[b][ch]) { // single channel stopped: data are still coming, but they are discarded
-						//~ Stats.EvRead_cnt[b][ch]--;  
-						//~ FreeWaveform(evnt[b][ch].Waveforms);
-						//~ continue;
-					//~ }
+					// Get the newest time stamp (used to calculate the real acquisition time)
+					if (evnt[b][ch].TimeStamp > Stats.LatestProcTstampAll)
+						Stats.LatestProcTstampAll = evnt[b][ch].TimeStamp;
+					Stats.AcqStopTime = (float)(Stats.LatestProcTstampAll/1e6);
+					Stats.LatestProcTstamp[b][ch] = evnt[b][ch].TimeStamp;
 
-					//~ // Get the newest time stamp (used to calculate the real acquisition time)
-					//~ if (evnt[b][ch].TimeStamp > Stats.LatestProcTstampAll)
-						//~ Stats.LatestProcTstampAll = evnt[b][ch].TimeStamp;
-					//~ Stats.AcqStopTime = (float)(Stats.LatestProcTstampAll/1e6);
-					//~ Stats.LatestProcTstamp[b][ch] = evnt[b][ch].TimeStamp;
+					// ------------------------------------------------------------------------------
+					// Energy & PSD Spectra 
+					// ------------------------------------------------------------------------------
+					if ((evnt[b][ch].Flags & EVFLAGS_PILEUP) && !((WDcfg.DppType == DPP_PSD_730) && (WDcfg.PileUpMode[b][ch] == 0))) { // Pile-up
+						BadEvent = 1;
+					} else if (evnt[b][ch].Flags & EVFLAGS_SATUR) { // input saturation (Vin > dynamic range)
+						BadEvent = 1;
+					} else if (evnt[b][ch].Flags & EVFLAGS_E_OVR) {  // charge saturation
+						BadEvent = 1;
+						Ebin = 0xFFFF;
+						Histo1D_AddCount(&Histos.EH[b][ch], Ebin);  // increment over_range counter
+					} else if (evnt[b][ch].Flags & EVFLAGS_E_UNR) {  // negative charge 
+						BadEvent = 1;
+						Ebin = -1;
+						Histo1D_AddCount(&Histos.EH[b][ch], Ebin); // increment under_range counter
+					} else {
+						Ebin = (int)evnt[b][ch].Energy;
+						psdbin = (int)(evnt[b][ch].psd*1024);
+						by, bx = Ebin * HISTO2D_NBINX / WDcfg.EHnbin;
+						if (WDcfg.ScatterPlotMode == SCATTER_PSD_DIAGONAL)
+							by = (int)((evnt[b][ch].Energy - evnt[b][ch].psd*evnt[b][ch].Energy) * HISTO2D_NBINY / WDcfg.EHnbin);
+						else 
+							by = (int)(evnt[b][ch].psd * HISTO2D_NBINY);
+						Histo1D_AddCount(&Histos.PSDH[b][ch], psdbin);
+						if ((WDcfg.ScatterPlotMode == SCATTER_PSD_DIAGONAL) || (WDcfg.ScatterPlotMode == SCATTER_PSD_HORIZONTAL))
+							Histo2D_AddCount(&Histos.PSDvsE[b][ch], bx, by);
+						Histo1D_AddCount(&Histos.EH[b][ch], Ebin);
+					}
 
-					//~ // ------------------------------------------------------------------------------
-					//~ // Energy & PSD Spectra 
-					//~ // ------------------------------------------------------------------------------
-					//~ if ((evnt[b][ch].Flags & EVFLAGS_PILEUP) && !((WDcfg.DppType == DPP_PSD_730) && (WDcfg.PileUpMode[b][ch] == 0))) { // Pile-up
-						//~ BadEvent = 1;
-					//~ } else if (evnt[b][ch].Flags & EVFLAGS_SATUR) { // input saturation (Vin > dynamic range)
-						//~ BadEvent = 1;
-					//~ } else if (evnt[b][ch].Flags & EVFLAGS_E_OVR) {  // charge saturation
-						//~ BadEvent = 1;
-						//~ Ebin = 0xFFFF;
-						//~ Histo1D_AddCount(&Histos.EH[b][ch], Ebin);  // increment over_range counter
-					//~ } else if (evnt[b][ch].Flags & EVFLAGS_E_UNR) {  // negative charge 
-						//~ BadEvent = 1;
-						//~ Ebin = -1;
-						//~ Histo1D_AddCount(&Histos.EH[b][ch], Ebin); // increment under_range counter
-					//~ } else {
-						//~ Ebin = (int)evnt[b][ch].Energy;
-						//~ psdbin = (int)(evnt[b][ch].psd*1024);
-						//~ by, bx = Ebin * HISTO2D_NBINX / WDcfg.EHnbin;
-						//~ if (WDcfg.ScatterPlotMode == SCATTER_PSD_DIAGONAL)
-							//~ by = (int)((evnt[b][ch].Energy - evnt[b][ch].psd*evnt[b][ch].Energy) * HISTO2D_NBINY / WDcfg.EHnbin);
-						//~ else 
-							//~ by = (int)(evnt[b][ch].psd * HISTO2D_NBINY);
-						//~ Histo1D_AddCount(&Histos.PSDH[b][ch], psdbin);
-						//~ if ((WDcfg.ScatterPlotMode == SCATTER_PSD_DIAGONAL) || (WDcfg.ScatterPlotMode == SCATTER_PSD_HORIZONTAL))
-							//~ Histo2D_AddCount(&Histos.PSDvsE[b][ch], bx, by);
-						//~ Histo1D_AddCount(&Histos.EH[b][ch], Ebin);
-					//~ }
+					// ------------------------------------------------------------------------------
+					// Energy vs deltaE (alternative to PSD)
+					// ------------------------------------------------------------------------------
+					if (!BadEvent && (WDcfg.ScatterPlotMode == SCATTER_E_VS_DELTAE)) {
+						if (((ch & 1) == 0) && (NumEv[b][ch+1])) { // assuming deltaE is in the same channel pair of E (ch0=E, ch1=dE, etc...)
+							by = (int)evnt[b][ch+1].Energy * HISTO2D_NBINX / WDcfg.EHnbin;
+							Histo2D_AddCount(&Histos.PSDvsE[b][ch], bx, by);
+							Histo2D_AddCount(&Histos.PSDvsE[b][ch+1], bx, by);
+						}
+					}
 
-					//~ // ------------------------------------------------------------------------------
-					//~ // Energy vs deltaE (alternative to PSD)
-					//~ // ------------------------------------------------------------------------------
-					//~ if (!BadEvent && (WDcfg.ScatterPlotMode == SCATTER_E_VS_DELTAE)) {
-						//~ if (((ch & 1) == 0) && (NumEv[b][ch+1])) { // assuming deltaE is in the same channel pair of E (ch0=E, ch1=dE, etc...)
-							//~ by = (int)evnt[b][ch+1].Energy * HISTO2D_NBINX / WDcfg.EHnbin;
-							//~ Histo2D_AddCount(&Histos.PSDvsE[b][ch], bx, by);
-							//~ Histo2D_AddCount(&Histos.PSDvsE[b][ch+1], bx, by);
-						//~ }
-					//~ }
-
-					//~ // ------------------------------------------------------------------------------
-					//~ // Sample Histogram (NOTE: the sample histogram grows only when active on the plot)
-					//~ // ------------------------------------------------------------------------------
-					//~ if ((evnt[b][ch].Waveforms != NULL) && (HistoPlotType == HPLOT_SAMPLES)) {
-						//~ for (i=0; i<evnt[b][ch].Waveforms->Ns; i++)
-							//~ Histo1D_AddCount(&Histos.SH[b][ch], evnt[b][ch].Waveforms->AnalogTrace[0][i]);
-					//~ }
+					// ------------------------------------------------------------------------------
+					// Sample Histogram (NOTE: the sample histogram grows only when active on the plot)
+					// ------------------------------------------------------------------------------
+					if ((evnt[b][ch].Waveforms != NULL) && (HistoPlotType == HPLOT_SAMPLES)) {
+						for (i=0; i<evnt[b][ch].Waveforms->Ns; i++)
+							Histo1D_AddCount(&Histos.SH[b][ch], evnt[b][ch].Waveforms->AnalogTrace[0][i]);
+					}
 
 
-					//~ // ------------------------------------------------------------------------------
-					//~ // Time Spectrum 
-					//~ // ------------------------------------------------------------------------------
-					//~ double time;
-					//~ uint32_t Tbin;
-					//~ if (WDcfg.TspectrumMode == TAC_SPECTRUM_INTERVALS)  
-						//~ time = (double)(evnt[b][ch].TimeStamp - PrevChTimeStamp[b][ch]);  // delta T between pulses on the same channel (in ns)
-					//~ else
-						//~ time = (double)evnt[b][ch].TimeStamp - (double)evnt[BrdRef][ChRef].TimeStamp + ((double)evnt[b][ch].FineTimeStamp - (double)evnt[BrdRef][ChRef].FineTimeStamp)/1000;  // delta T from Ref Channel (in ns)
+					// ------------------------------------------------------------------------------
+					// Time Spectrum 
+					// ------------------------------------------------------------------------------
+					double time;
+					uint32_t Tbin;
+					if (WDcfg.TspectrumMode == TAC_SPECTRUM_INTERVALS)  
+						time = (double)(evnt[b][ch].TimeStamp - PrevChTimeStamp[b][ch]);  // delta T between pulses on the same channel (in ns)
+					else
+						time = (double)evnt[b][ch].TimeStamp - (double)evnt[BrdRef][ChRef].TimeStamp + ((double)evnt[b][ch].FineTimeStamp - (double)evnt[BrdRef][ChRef].FineTimeStamp)/1000;  // delta T from Ref Channel (in ns)
 						
-					//~ PrevChTimeStamp[b][ch] = evnt[b][ch].TimeStamp;
-					//~ Tbin = (uint32_t)((time - WDcfg.THmin[b][ch]) * WDcfg.THnbin / (WDcfg.THmax[b][ch] - WDcfg.THmin[b][ch]));
-					//~ Histo1D_AddCount(&Histos.TH[b][ch], Tbin);
+					PrevChTimeStamp[b][ch] = evnt[b][ch].TimeStamp;
+					Tbin = (uint32_t)((time - WDcfg.THmin[b][ch]) * WDcfg.THnbin / (WDcfg.THmax[b][ch] - WDcfg.THmin[b][ch]));
+					Histo1D_AddCount(&Histos.TH[b][ch], Tbin);
 
-					//~ // ------------------------------------------------------------------------------
-					//~ // Multi Channel Scaler 
-					//~ // ------------------------------------------------------------------------------
-					//~ Tbin = (uint32_t)(evnt[b][ch].TimeStamp / ((uint64_t)WDcfg.DwellTime*1000));
-					//~ Histo1D_AddCount(&Histos.MCSH[b][ch], Tbin);
+					// ------------------------------------------------------------------------------
+					// Multi Channel Scaler 
+					// ------------------------------------------------------------------------------
+					Tbin = (uint32_t)(evnt[b][ch].TimeStamp / ((uint64_t)WDcfg.DwellTime*1000));
+					Histo1D_AddCount(&Histos.MCSH[b][ch], Tbin);
 
 					//~ // ------------------------------------------------------------------------------
 					//~ // Save and Plot
@@ -1336,10 +1332,10 @@ void measurement_spool(int *state) //, uint32_t **EHistoShort, uint32_t **EHisto
 					//~ if (WDcfg.SaveWaveforms && (evnt[b][ch].Waveforms != NULL)) 
 						//~ SaveWaveform(b, ch, evnt[b][ch]);
 
-					//~ // Accumulate FFT (average)
+					// Accumulate FFT (average)
 					//~ if (WavePlotType == WPLOT_FFT) AccumulateFFT(*evnt[b][ch].Waveforms);
 
-					//~ // Waveform Plotting 
+					// Waveform Plotting 
 					//~ if ((b==BrdToPlot) && (ch==ChToPlot) && (WavePlotType != WPLOT_DISABLED) && ((CurrentTime-PrevPlotTime) > Wave_RefreshRate) && (DoRefresh || DoRefreshSingle) && (evnt[b][ch].Waveforms != NULL)) {
 						//~ char title[500];
 						//~ if (WavePlotType == WPLOT_WAVEFORMS) { // Waveform
@@ -1357,14 +1353,14 @@ void measurement_spool(int *state) //, uint32_t **EHistoShort, uint32_t **EHisto
 						//~ }
 					//~ }
 
-					//~ // free waveform memory
-					//~ FreeWaveform(evnt[b][ch].Waveforms);
-				//~ }
-			//~ }
-			//~ DoRefreshSingle = 0;
-		//~ } else if (Stopping) {
-			//~ NoData = 1;
-		//~ }
+					// free waveform memory
+					FreeWaveform(evnt[b][ch].Waveforms);
+				}
+			}
+			DoRefreshSingle = 0;
+		} else if (Stopping) {
+			NoData = 1;
+		}
 	} // End of readout loop
 
 	UpdateStatistics(CurrentTime);
