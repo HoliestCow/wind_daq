@@ -17,8 +17,8 @@ def construct_histogram(data, channelnumber, binnumber):
 
 
 def main():
-    nbin = 2 ** 12
-    # nbin = 2 ** 14
+    # nbin = 2 ** 12
+    nbin = 2 ** 14
     nchannel = 8
     measurement_time = 10  # 60 seconds.
     # measurement_spool(state, short_data, long_data, size)
@@ -46,7 +46,7 @@ def main():
     for i in range(measurement_time):
         time.sleep(1)
         print('getting histograms')
-        get_histograms(long_data)
+        update_histograms(long_data)
         print('about to call construct_hist')
         lmao = construct_histogram(long_data, nchannel, nbin)
         print('data structure')
@@ -55,6 +55,7 @@ def main():
         print('total counts, {}'.format(np.sum(long_data)))
         print('grabbed data, cps {}'.format(np.sum(lmao, axis=1)))
         long_data_thru_time = np.concatenate((long_data_thru_time, lmao.reshape(time_array_size)), axis=2)
+        reset_histograms()
     state[0] = 2
     time.sleep(2)
     state[0] = 3
