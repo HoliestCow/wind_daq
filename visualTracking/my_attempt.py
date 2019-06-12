@@ -1,93 +1,99 @@
 from __future__ import division
 import sys
-import yaml
 import threading
 import argparse
-import logging
 import cv2
-import random
 import time
 import datetime
-import os 
+import os
 from matplotlib import pyplot as plt
 from os import listdir
-from os.path import isfile, join, isdir
+from os.path import isfile, join
 
 import numpy as np
 from PIL import Image
 import src.siamese as siam
 from src.tracker import tracker
 from src.parse_arguments import parse_arguments
-from src.region_to_bbox import region_to_bbox
-#from myCamera import getImages
+# from src.region_to_bbox import region_to_bbox
+# from myCamera import getImages
 
 from darknet import *
 import database
 import math
 
 
-colors = [(255,0,0), (0,255,0), (0,0,255), (0,255,255), (255,255,0), (255,0,255)]
+colors = [(255, 0, 0),
+          (0, 255, 0),
+          (0, 0, 255),
+          (0, 255, 255),
+          (255, 255, 0),
+          (255, 0, 255)]
+
 
 class sfc_bbox:
-    def __init__(self,color,label,positions,prob):
+    def __init__(self, color, label, positions, prob):
         self.color = color
         self.label = label
         self.positions = positions
         self.prob = prob
         return
 
-    def padfront(self,numRows):
+    def padfront(self, numRows):
         if(numRows == 0):
             return
         newEntries = []
         for i in range(numRows):
             newEntries.append([-1, -1, -1, -1])
-        self.positions = np.concatenate((newEntries,self.positions),0)
+        self.positions = np.concatenate((newEntries, self.positions), 0)
         return
 
-    def padafter(self,numRows):
+    def padafter(self, numRows):
         if(numRows == 0):
             return
         newEntries = []
         for i in range(numRows):
             newEntries.append([-1, -1, -1, -1])
-        self.positions = np.concatenate((self.positions,newEntries),0)
+        self.positions = np.concatenate((self.positions, newEntries), 0)
         return
+
 
 class siamfcGraph:
-    def __init__(self,filename,image,templates_z,scores):
+    def __init__(self, filename, image, templates_z, scores):
         self.filename = filename
         self.image = image
         self.templates_z = templates_z
         self.scores = scores
 
-def getImages(folder_name,imagesPerSec,totalTime,database, now, graph, scfg):
+
+def getImages(folder_name, imagesPerSec, totalTime, database, now, graph, scfg):
     fourcc = cv2.VideoWriter_fourcc(*'MJPG')
     try:
         cam = cv2.VideoCapture(cameraNumber)
-    except:
+    except:  # bare except. Not sure what error this throws.
         print("Camera number given is not valid or connected")
 
     yoloList = [threading.Thread()]
-    for timeStep in range(0,totalTime):
+    for timeStep in range(0, totalTime):
         if(timeStep != 0):
             yoloList.append(threading.Thread())
 
-        new_dir = os.path.join(folder_name,'%d_%d_%d'% (now.hour, now.minute, now.second+timeStep))
-        #print(new_dir)
+        new_dir = os.path.join(
+            folder_name,
+            '%d_%d_%d' % (now.hour, now.minute, now.second+timeStep))
+        # print(new_dir)
         if not os.path.exists(new_dir):
             os.makedirs(new_dir)
-        
-        f = open(new_dir+"/groundtruth.txt","w+")
-        for i in range(0,imagesPerSec):
+        f = open(new_dir+"/groundtruth.txt", "w+")
+        for i in range(0, imagesPerSec):
             ret, frame = cam.read()
-            #cv2.imshow("test", frame)
+            # cv2.imshow("test", frame)
             if not ret:
                 break
-            k = cv2.waitKey(int(1000/imagesPerSec))
+            # k = cv2.waitKey(int(1000 / imagesPerSec))
             img_name = new_dir+"/opencv_frame_%03d.png" % i
             cv2.imwrite(img_name, frame)
-            #print("{} written!".format(img_name))
+            # print("{} written!".format(img_name))
             f.write(("100 100 100 100\n"))
 
         height, width = frame.shape[:2]
@@ -480,7 +486,7 @@ def main():
                 if(genVideos):
                     showSiamFCResult(dirName, SiamfcVid, True)
 
-    #haha.join()
+    # haha.join()
     YoloVid.release()
     SiamfcVid.release()
     return
