@@ -10,10 +10,12 @@ _doublepp = np.ctypeslib.ndpointer(ctypes.c_int32, flags='C_CONTIGUOUS')
 _lib.measurement_spool.argtypes = [_doublepp]
 _lib.readout_histograms.argtypes = [_doublepp]
 
+
 def reset_histograms():
     global _lib
     _lib.ResetHistograms()
     return
+
 
 def update_histograms(pointer):
     global _lib
@@ -34,8 +36,7 @@ def measurement_spool(state):
     # state = 2 - stop data Acquisition
     # state = 3 - clean up and jump out of the measurement_spool. Free up the thread.
     global _lib
-    print(state)
-    print(state.shape)
+    print('starting the measurement_spool')
     _lib.measurement_spool(state)
-    print('called')
+    print('measurement_spool started.')
     return
