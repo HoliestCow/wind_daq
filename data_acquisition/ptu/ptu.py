@@ -1,24 +1,9 @@
 
 ############### PTU STUFF ###############
-# import sys
-# sys.path.append('/home/holiestcow/Documents/winds/thrift/')
-# sys.path.append('/home/holiestcow/Documents/winds/thrift/wind_daq/WIND-Thrift/gen-py/')
-# sys.path.append('/home/holiestcow/Documents/winds/thrift/wind_daq/libs/ptu/')
-# sys.path.append('/home/holiestcow/Documents/winds/thrift/wind_daq/libs/vectornav/lib.linux-x86_64-3.5/')
-
-# sys.path.append('/home/cbritt2/')  # this is to get the wind_daq. to start working
-
-# from csvseeker import CSVSeeker
-
 # for getting data out of the CAEN digitizer
 import caenlib
 
-# from CVRSServices.CVRSEndpoint import Client
-# from server import CVRSHandler
 import CVRSServices.CVRSEndpoint
-# from CVRSServices.ttypes import (StatusCode, ControlType, Session, StartRecordingControlPayload,
-#                                  ControlPayloadUnion, ControlMessage, ControlMessageAck,
-#                                  RecordingUpdate, DefinitionAndConfigurationUpdate)
 from PTUPayload.ttypes import (UnitDefinition, UnitType, Status,
                                SystemDefinition, SystemConfiguration,
                                RecordingConfiguration, RecordingType, DataPayload)
@@ -53,8 +38,6 @@ from Spectrum.ttypes import (SpectrumResult, Spectrum,
                              SpectrumFormat)
 from Health.ttypes import (Health)
 
-# from server import
-
 from UUID.ttypes import UUID
 
 from thrift import Thrift
@@ -70,7 +53,6 @@ import datetime as dt
 from wind_daq.utils.thrift_uuid import Thrift_UUID
 from wind_daq.utils.database import DatabaseOperations
 import numpy as np
-# import wind_daq.ptu.catch_measurements
 
 ######### VN 300 Libraries ##########
 from vnpy import *
@@ -79,7 +61,6 @@ from vnpy import *
 
 # from threading import Thread
 from wind_daq.utils.threads import StoppableThread
-
 
 ########## DONE IMPORTING ################
 
@@ -90,14 +71,14 @@ class PTU:
         self.start_clock = dt.datetime.now()
         self.counter = 0
 
-    def get_unitDefinition(self):
+    def initialize_unitDefinition(self):
         # Define what I am
         self.unitDefinition = UnitDefinition(unitId=self.uuid_dict['PTU'],
-                                         unitName='UTK PTU Unit',
-                                         softwareVersion='0.1',
-                                         hardwareRevision='0.1',
-                                         vendor='University of Tennessee - Knoxville',
-                                         unitType=UnitType.Wearable)
+                                             unitName='UTK PTU Unit',
+                                             softwareVersion='0.1',
+                                             hardwareRevision='0.1',
+                                             vendor='University of Tennessee - Knoxville',
+                                             unitType=UnitType.Wearable)
         return
 
     def initialize_uuids(self):
@@ -167,7 +148,7 @@ class PTU:
                                   energy=(i + 1) * dE)
             energyCalibration += [x]
 
-            # NOTE: Constant energy resolution. In practice this is pretty stupid.
+            # NOTE: Constant energy resolution. In practice this is dumb.
             energyResolution += [EnergyResolution(energy=x.energy,
                                                   fraction=constantEnergyResolution)]
 
@@ -198,23 +179,26 @@ class PTU:
         for i in range(0, 1024):  # by energy
             energy = (i + 1) * dE
             angularEfficiencies = []
-            for j in np.linspace(0.0, 360.0, num=37):  # by angle in 10 degree increments
+            for j in np.linspace(0.0, 360.0, num=37):
+                # by angle in 10 degree increments
+                # this efficiency stuff is made up, but this is how we 
+                # encode the angular response of the system itself.
                 angularEfficiencies += [AngleEfficiencyPair(
-                    angle=float(j) / 360.0 * 2 * np.pi,  # This is just a made up number
+                    angle=float(j) / 360.0 * 2 * np.pi,
                     efficiency=float(j) / 360.0)]
             angularEfficiency = AngularEfficiencyDefinition(
-                energy= energy,
-                efficiency=angularEfficiencies)
+                energy = energy,
+                efficiency = angularEfficiencies)
             angularEfficiencyDefinitions += [angularEfficiency]
 
         self.gammaSpectrumDefinitions = [
-        GammaListAndSpectrumDefinition(
-            component=component,
-            numberOfChannels=1024,
-            physicalDimensions=physicalDimensions,
-            detectorMaterial=detectorMaterial,
-            startingGammaConfiguration=gammaSpectrumConfig,
-            angularEfficiencies=angularEfficiencyDefinitions)]
+            GammaListAndSpectrumDefinition(
+                component=component,
+                numberOfChannels=1024,
+                physicalDimensions=physicalDimensions,
+                detectorMaterial=detectorMaterial,
+                startingGammaConfiguration=gammaSpectrumConfig,
+                angularEfficiencies=angularEfficiencyDefinitions)]
 
         gammaGrossCountConfiguration = GammaGrossCountConfiguration(
             componentId=self.uuid_dict['GammaDetector'],
@@ -248,9 +232,9 @@ class PTU:
 
     def get_environmentDefinitions(self):
         self.environmentDefinitions = []
-
+        # GPS has a temperature  sensor. However I'm not sure whether to use it or not.
         component = ComponentDefinition(
-            componentId=self.uuid_dict['GPS'],  # GPS has a temperature  sensor. However I'm not sure whether to use it or not.
+            componentId=self.uuid_dict['GPS'], 
             componentName='VectorNav VN-300-DEV',
             vendorName='VectorNav',
             serialNumber='100033618')
@@ -326,7 +310,7 @@ class PTU:
             fy=480)
 
         self.contextVideoConfigurations = ContextVideoConfiguration(
-            componentId = self.uuid_dict['VideoConfiguration'],
+            componentId=self.uuid_dict['VideoConfiguration'],
             fileName='NANI.avi',
             framesPerSecond=30.0,
             verticalResolution=480,
@@ -450,33 +434,21 @@ class PTU:
         num_channels = 4096
 
         self.gammaHandlingState = np.array([1], dtype=np.int32)
-        self.gammaHandlingShortData = np.zeros((num_caen_channels, num_channels), dtype=np.uint32)
-        self.gammaHandlingLongData = np.zeros((num_caen_channels, num_channels), dtype=np.uint32)
+        self.gammaHandlingData = np.zeros((num_caen_channels, num_channels), dtype=np.uint32)
 
         # Here we make the cfunction call to sit on a single threadself.
         # The only input is a pointer to the integer which describes what state we'd like the thread to be in.
-        #input:
+        # input:
         # state.
             # 0 = idle
             # 1 = start acquisition
             # 2 = stop acquisition
             # 3 = cleanup and jump out of the code.
-        # self.caenlib_thread = Thread(target=caenlib.measurement_spool,
-        #                              args=(self.gammaHandlingState,
-        #                                    self.gammaHandlingShortData,
-        #                                    self.gammaHandlingLongData,
-        #                                    self.gammaHandlingShortData.size,
-        #                                    self.gammaHandlingShortData.shape),
-        #                              name='caenlib_spool')
         self.caenlib_thread = StoppableThread(
             target=caenlib.measurement_spool,
-            args=(self.gammaHandlingState,
-                  self.gammaHandlingShortData,
-                  self.gammaHandlingLongData,
-                  self.gammaHandlingShortData.size,
-                  self.gammaHandlingShortData.shape))
+            args=(self.gammaHandlingState,))
         self.caenlib_thread.start()
-        time.sleep(2)
+        time.sleep(10)
         print('started caenlib')
         # t1.join()
         # NOTE: Have to test by setting self.gammaHandlingState to not zero and check in C.
@@ -486,9 +458,11 @@ class PTU:
         print('starting  measurement spool')
         # for yolo in range(measurement_time):
         for i in range(measurement_time):
+            caenlib.reset_histograms()
             if self.payload_thread.stopped():
                 break
             time.sleep(1)
+            caenlib.update_histograms(self.gammaHandlingData)
             c = time.time()
             # Construct thrift objects for packaging.
             # 3) pushData
@@ -504,7 +478,7 @@ class PTU:
             gammaSpectrumData = []
             gammaGrossCountData = []
             # for i in range(len(self.gammaHandling)):
-            for i in range(self.gammaHandlingShortData.shape[0]):
+            for i in range(self.gammaHandlingData.shape[0]):
                 # NOTE: I have to figure out how this exactly works. And surely there's a step to convert long and short charge integrations into energy deposited. But I'm not sure how this is supposed to work. More testing :/
 
                 # NOTE: why do I do this??
@@ -516,7 +490,7 @@ class PTU:
                 # gammaCounts += [np.sum(snapshots)]
                 #############################################
                 print('before intSpec')
-                intSpectrum = [int(x) for x in self.gammaHandlingLongData[i, :]]
+                intSpectrum = [int(x) for x in self.gammaHandlingData[i, :]]
                 print('after intSpec')
                 integerSpectrum = Spectrum(
                     spectrumInt=intSpectrum,
@@ -608,11 +582,6 @@ class PTU:
 
             self.payload = dataPayload
 
-            # for i in range(self.gammaHandlingShortData.shape[0]):
-            #     np.save('/home/holiestcow/Documents/winds/thrift/wind_daq/ptu/spectra_det{}_t{}s.npy'.format(
-            #         i, time.time()),
-            #         self.gammaHandlingLongData[i, :])
-
             # Write the data in the thrift package into the sqlite3 on PTU local.
             # Write to db every second? Or write everytime I push????
             # self.db.stack_datum(singlePayload)
@@ -683,7 +652,7 @@ class PTU:
 
         self.initialize_uuids()
 
-        unit_definition = self.get_unitDefinition()
+        self.initialize_unitDefinition()
         # Initiate handshake
         print('Initiating handhsake')
         session = client.registerPtu(unitDefinition=self.unitDefinition)
@@ -702,8 +671,6 @@ class PTU:
         self.db = DatabaseOperations('./PTU_local.sqlite3')
         self.db.initialize_structure(numdetectors=4)
 
-        counter = 0
-
         # self.initialize_measurement_thread(gammaFilenames)
         # QUESTION: Start threads threads here, they populate self.package.
         # self.spool_measurement_thread()
@@ -718,7 +685,7 @@ class PTU:
         self.caenlib_spool()
         self.gammaHandlingState[0] = 1  # start acquisition. on the clib side
 
-        #NOTE: Payload thread should sit another spool that happens every 1 second. Measurement spool should have a while true I think.
+        # NOTE: Payload thread should sit another spool that happens every 1 second. Measurement spool should have a while true I think.
 
         self.payload_thread = StoppableThread(
             target=self.measurement_spool,
@@ -794,8 +761,6 @@ class PTU:
             b = time.time()
             print('time elapsed: {}'.format(b - a))
             timetosleep = 1 - (b - a)
-
-
         # NOTE: Frankly I should never get to the close, since I'll be infinitely looping
         self.gammaHandlingState[0] = 3
         time.sleep(1)
