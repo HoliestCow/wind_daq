@@ -30,7 +30,8 @@ def tracker(graph, scfg, hp, run, design, frame_name_list, pos_x, pos_y, target_
         newVector = False
     # stores tracker's output for evaluation
     bboxes = np.zeros((num_frames,4))
-
+    val = eFrame-sFrame
+    print(val)
     scale_factors = hp.scale_step**np.linspace(-np.ceil(hp.scale_num/2), np.ceil(hp.scale_num/2), hp.scale_num)
     # cosine window to penalize large displacements    
     hann_1d = np.expand_dims(np.hanning(final_score_sz), axis=0)
@@ -79,7 +80,15 @@ def tracker(graph, scfg, hp, run, design, frame_name_list, pos_x, pos_y, target_
 
         
         # Get an image from the queue
-        for i in range(sFrame, eFrame):        
+        counter = 0.0
+        toolbar_width = 40
+        for i in range(sFrame, eFrame):
+            sys.stdout.write("[")
+            sys.stdout.write("*"*int(float(counter/(eFrame-sFrame))*toolbar_width))
+            sys.stdout.write(" "*int((1-counter/(eFrame-sFrame))*toolbar_width))
+            sys.stdout.write("]")
+            sys.stdout.write("%d/%d"%(counter, (eFrame-sFrame)))     
+            counter = counter + 1.0
             scaled_exemplar = z_sz * scale_factors
             scaled_search_area = x_sz * scale_factors
             scaled_target_w = target_w * scale_factors
@@ -145,9 +154,10 @@ def tracker(graph, scfg, hp, run, design, frame_name_list, pos_x, pos_y, target_
                 if(newVector):
                     finalImages.append(singleFrame)
                 #video.write(singleFrame)
-                #show_frame(image_, bboxes[i,:], 1)        
+                #show_frame(image_, bboxes[i,:], 1)  
+            sys.stdout.write("\b" * int(toolbar_width+5+min(1,counter/10)+min(1,counter/100)+min(1,counter/1000)+min(1,(eFrame-sFrame)/10)+min(1,(eFrame-sFrame)/100)+min(1,(eFrame-sFrame)/1000)))       
 
-
+        sys.stdout.write("\n")
         t_elapsed = time.time() - t_start
         speed = num_frames/t_elapsed
 
