@@ -6,9 +6,10 @@ import caenlib
 import CVRSServices.CVRSEndpoint
 from PTUPayload.ttypes import (UnitDefinition, UnitType, Status,
                                SystemDefinition, SystemConfiguration,
-                               RecordingConfiguration, RecordingType, DataPayload)
+                               RecordingConfiguration, RecordingType,
+                               DataPayload)
 from CVRSServices.ttypes import (RecordingUpdate,
-                                  DefinitionAndConfigurationUpdate)
+                                 DefinitionAndConfigurationUpdate)
 from GammaSensor.ttypes import (SIPMSettings, PMTSettings, SIPM_PMTSettings,
                                 GammaListAndSpectrumConfiguration,
                                 GammaListAndSpectrumDefinition,
@@ -33,7 +34,11 @@ from EnvironmentalSensor.ttypes import (EnvironmentalTypes,
                                         EnvironmentalSensorData)
 from ContextSensor.ttypes import (ContextVideoConfiguration,
                                   ContextVideoDefinition,
-                                  CameraIntrinsics)
+                                  CameraIntrinsics,
+                                  ContextStreamConfiguration,
+                                  ContextStreamDefinition,
+                                  ContextStreamIndexData,
+                                  SensorModalityConfiguration)
 from Spectrum.ttypes import (SpectrumResult, Spectrum,
                              SpectrumFormat)
 from Health.ttypes import (Health)
@@ -181,14 +186,14 @@ class PTU:
             angularEfficiencies = []
             for j in np.linspace(0.0, 360.0, num=37):
                 # by angle in 10 degree increments
-                # this efficiency stuff is made up, but this is how we 
+                # this efficiency stuff is made up, but this is how we
                 # encode the angular response of the system itself.
                 angularEfficiencies += [AngleEfficiencyPair(
                     angle=float(j) / 360.0 * 2 * np.pi,
                     efficiency=float(j) / 360.0)]
             angularEfficiency = AngularEfficiencyDefinition(
-                energy = energy,
-                efficiency = angularEfficiencies)
+                energy=energy,
+                efficiency=angularEfficiencies)
             angularEfficiencyDefinitions += [angularEfficiency]
 
         self.gammaSpectrumDefinitions = [
@@ -232,9 +237,9 @@ class PTU:
 
     def get_environmentDefinitions(self):
         self.environmentDefinitions = []
-        # GPS has a temperature  sensor. However I'm not sure whether to use it or not.
+        # GPS has a temperature  sensor
         component = ComponentDefinition(
-            componentId=self.uuid_dict['GPS'], 
+            componentId=self.uuid_dict['GPS'],
             componentName='VectorNav VN-300-DEV',
             vendorName='VectorNav',
             serialNumber='100033618')
@@ -308,7 +313,6 @@ class PTU:
             cy=int(480 / 2),
             fx=640,
             fy=480)
-
         self.contextVideoConfigurations = ContextVideoConfiguration(
             componentId=self.uuid_dict['VideoConfiguration'],
             fileName='NANI.avi',
@@ -326,24 +330,54 @@ class PTU:
         self.contextVideoDefinitions += [
             ContextVideoDefinition(
                 component=component,
-                videoConfiguration=contextVideoConfigurations)]
-        return contextVideoDefinitions, contextVideoConfigurations
+                videoConfiguration=self.contextVideoConfigurations)]
+        return
+
+    def get_videostreamingDefinitions(self):
+        # fills in self.streamDefinition.
+        streamingdefinition_template = self.contextVideoDefinitions[0]
+        streamingconfiguration_template = self.contextVideoConfigurations
+        modalityconfiguration = SensorModalityConfiguration(
+            videoConfiguration=streamingconfiguration_template)
+
+        self.contextStreamConfiguration = ContextStreamConfiguration(
+            componentId=streamingconfiguration_template.componentId,
+            componentPositionAndOrientation=streamingconfiguration_template.componentPositionAndOrientation,
+            modalityConfiguration=modalityconfiguration,
+            timeStamp=int(time.time()))
+
+        self.contextStreamDefinition = ContextStreamDefinition(
+            component=streamingdefinition_template.component,
+            streamFormat=None,
+            streamAddress=None,
+            formatVerion=None,
+            documentationURI=None,
+            configuration=self.contextStreamConfiguration)
+        return
 
     def get_systemDefinition(self):
         # Defining systemDefinition
 
         self.get_gammaDefinitions()
-        self.get_environmentDefinitions()
+        # below is for the temperature sensor on the VN 300. Skip for now.
+        # self.get_environmentDefinitions()
+        # below works, I was just testing just the gamma stuf
         # self.get_navigationDefinitions()
-        # contextVideoDefinition = get_contextVideoDefinitions()
+
+        # I have to call get_contextVideo before videostreaming since it
+        # initializes stuff I need.
+        self.get_contextVideoDefinitions()
+        self.get_videostreamingDefinitions()
 
         self.systemDefinition = SystemDefinition(
             gammaSpectrumDefinitions=self.gammaSpectrumDefinitions,
             gammaGrossCountDefinitions=self.gammaGrossCountDefinitions,
-            environmentalDefinitions=self.environmentDefinitions,
+            # environmentalDefinitions=self.environmentDefinitions,
             # navigationSensorDefinitions=self.navigationDefinitions,
+            # contextVideoDefinitions=self.contextVideoDefinitions,
             timeStamp=int(time.time()),
-            apiVersion='yolo')
+            apiVersion='yolo',
+            contextStreamDefinitions=self.streamDefinition)
 
         return
 
@@ -454,6 +488,62 @@ class PTU:
         # NOTE: Have to test by setting self.gammaHandlingState to not zero and check in C.
         # Make sure it's reading from the pointer directly in each loop.
 
+    def get_gammaData(self):
+        # gammaSpec = []
+        # gammaCounts = []
+        livetime = 1000  # HACK
+        realtime = 1000  # HACK
+        gammaSpectrumData = []
+        gammaGrossCountData = []
+        # for i in range(len(self.gammaHandling)):
+        for i in range(self.gammaHandlingData.shape[0]):
+            # NOTE: I have to figure out how this exactly works. And surely there's a step to convert long and short charge integrations into energy deposited. But I'm not sure how this is supposed to work. More testing :/
+
+            # NOTE: why do I do this??
+            #############################################
+            # snapshot = self.gammaHandling[i].get_updates()
+            # gammaSpec += [self.gammaHandlingLongData]
+            # gammaCounts += [np.sum(self.gammaHandlingLongData)]
+            # gammaSpec += [snapshot]
+            # gammaCounts += [np.sum(snapshots)]
+            #############################################
+            print('before intSpec')
+            intSpectrum = [int(x) for x in self.gammaHandlingData[i, :]]
+            print('after intSpec')
+            integerSpectrum = Spectrum(
+                spectrumInt=intSpectrum,
+                format=SpectrumFormat.ARRAY,
+                channelCount=len(intSpectrum),
+                liveTime=livetime)
+
+            spectrumResult = SpectrumResult(
+                intSpectrum=integerSpectrum)
+
+            gammaSpectrumData += [GammaSpectrumData(
+                componentId=self.uuid_dict['GammaDetector'],
+                timeStamp=int(time.time()),
+                health=Health.Nominal,
+                spectrum=spectrumResult,
+                liveTime=livetime,
+                realTime=realtime)]
+            gammaGrossCountData += [GammaGrossCountData(
+                componentId=self.uuid_dict['GammaDetector'],
+                timeStamp=int(time.time()),
+                health=Health.Nominal,
+                counts=sum(intSpectrum),
+                liveTime=livetime,
+                realTime=realtime)]
+        return gammaSpectrumData, gammaGrossCountData
+
+    def get_streamIndexData(self):
+        streamTime = self.contextStreamConfiguration.timestamp - (time.time() *
+                                                                  1000)
+        x = ContextStreamIndexData(
+            componentId=self.contextStreamConfiguration.componentId,
+            timestamp=time.time()*1000,
+            streamTimeStamp=streamTime)
+        return x
+
     def measurement_spool(self, measurement_time):
         print('starting  measurement spool')
         # for yolo in range(measurement_time):
@@ -469,75 +559,18 @@ class PTU:
             # NOTE: Decision: I'll control frequency from here. CSVSeeker has to keep track of the index and read from that point on. This will make it more modular and when I decide to update the spool to use the CAENLibs it'll be easier to do so.
             # NOTE: Decision: I'll package, send, then dump.
 
-            # QUESTION: How do I call this function???
+            gammaSpectrumData, gammaGrossCountData = self.get_gammaData()
+            streamIndexData = self.get_streamIndexData()
 
-            # gammaSpec = []
-            # gammaCounts = []
-            livetime = 1000  # HACK
-            realtime = 1000  # HACK
-            gammaSpectrumData = []
-            gammaGrossCountData = []
-            # for i in range(len(self.gammaHandling)):
-            for i in range(self.gammaHandlingData.shape[0]):
-                # NOTE: I have to figure out how this exactly works. And surely there's a step to convert long and short charge integrations into energy deposited. But I'm not sure how this is supposed to work. More testing :/
-
-                # NOTE: why do I do this??
-                #############################################
-                # snapshot = self.gammaHandling[i].get_updates()
-                # gammaSpec += [self.gammaHandlingLongData]
-                # gammaCounts += [np.sum(self.gammaHandlingLongData)]
-                # gammaSpec += [snapshot]
-                # gammaCounts += [np.sum(snapshots)]
-                #############################################
-                print('before intSpec')
-                intSpectrum = [int(x) for x in self.gammaHandlingData[i, :]]
-                print('after intSpec')
-                integerSpectrum = Spectrum(
-                    spectrumInt=intSpectrum,
-                    format=SpectrumFormat.ARRAY,
-                    channelCount=len(intSpectrum),
-                    liveTime=livetime)
-
-                spectrumResult = SpectrumResult(
-                    intSpectrum=integerSpectrum)
-
-                gammaSpectrumData += [GammaSpectrumData(
-                    componentId=self.uuid_dict['GammaDetector'],
-                    timeStamp=int(time.time()),
-                    health=Health.Nominal,
-                    spectrum=spectrumResult,
-                    liveTime=livetime,
-                    realTime=realtime)]
-                gammaGrossCountData += [GammaGrossCountData(
-                    componentId=self.uuid_dict['GammaDetector'],
-                    timeStamp=int(time.time()),
-                    health=Health.Nominal,
-                    counts=sum(intSpectrum),
-                    liveTime=livetime,
-                    realTime=realtime)]
-
-                # navData += self.get_navigationData()  # GPS data
-
-            # gammaSpectrumData = get_gammaSpectrumData(db, lasttime)
-            # gammaSpectrumData = self.get_gammaSpectrumData()
-            # gammaListData  = get_gammaListData(db)
             gammaListData = []
-            # gammaGrossCountData = get_gammaGrossCountData(db, lasttime)
-            # gammaGrossCountData = self.get_gammaGrossCountData()
-            # gammaDoseData = get_gammaDoseData(db)
             gammaDoseData = []
-            # neutronListData = get_neutronListData(db)
             neutronListData = []
-            # neutronSpectrumData = get_neutronSpectrumData(db)
             neutronSpectrumData = []
-            # neutronGrossCountData = get_neutronGrossCountData(db)
             neutronGrossCountData = []
 
             navigationData = []
             # navigationData = [self.get_navigationData()]
             # environmentalData = self.get_environmentalData()  # Temperature and pressure data from the GPS module
-            # environmentalData = []
-            # videoData = get_videoData(db)  # Let's, leave this for now I think.
             videoData = []
             pointCloudData = []
             voxelData = []
@@ -547,7 +580,7 @@ class PTU:
             boundingboxes = []
             markers = []
             algorithmData = []
-            streamIndexData = []
+            streamIndexData = [self.streamIndexData]
             configuration = [self.systemConfiguration]
 
             dataPayload = DataPayload(
@@ -558,7 +591,7 @@ class PTU:
                 # recordingConfig=recordingConfiguration,
                 gammaSpectrumData=gammaSpectrumData,
                 # gammaListData=gammaListData,
-                gammaGrossCountData=gammaGrossCountData)
+                gammaGrossCountData=gammaGrossCountData,
                 # gammaDoseData=gammaDoseData,
                 # neutronListData=neutronListData,
                 # neutronSpectrumData=neutronSpectrumData,
@@ -574,7 +607,7 @@ class PTU:
                 # boundingBoxes=boundingboxes,
                 # markers=markers,
                 # algorithmData=algorithmData,
-                # streamIndexData=streamIndexData,
+                streamIndexData=streamIndexData)
                 # configuration=configuration)
             d = time.time()
             print('Payload construction {}s'.format(d-c))

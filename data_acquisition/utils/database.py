@@ -19,13 +19,23 @@ class DatabaseOperations(object):
         # QUESTION: Should long and lat be real or int?
         if numdetectors is not None:
             for i in range(numdetectors):
-                self.c.execute('''CREATE TABLE IF NOT EXISTS det_{}(Time integer, PositionId integer, Spectrum_Array text, CPS real)'''.format(i))
+                self.c.execute('''CREATE TABLE IF NOT EXISTS det_{}(Time
+                               integer, PositionId integer, Spectrum_Array
+                               text, CPS real)'''.format(i))
         else:
-            self.c.execute('''CREATE TABLE IF NOT EXISTS det_0(Time integer, PositionId integer, Spectrum_Array text, CPS real)'''.format(i))
+            self.c.execute('''CREATE TABLE IF NOT EXISTS det_0(Time integer,
+                           PositionId integer, Spectrum_Array text,
+                           CPS real)'''.format(i))
 
+        self.c.execute('''CREATE TABLE IF NOT EXISTS gps(Time integer,
+                       Longitude real, Latitude real,
+                       NumberofSatellites integer)''')
 
-
-        self.c.execute('''CREATE TABLE IF NOT EXISTS gps(Time integer, Longitude real, Latitude real, NumberofSatellites integer)''')
+        self.c.execute('''CREATE TABLE IF NOT EXISTS videofusion(Time integer,
+                       imagedir string, detection_image_filename string,
+                       tracking_image_filename_prefix string,
+                       num_images_tracking integer,
+                       fusion_result_image_filename string''')
 
     def fake_stack_datum(self, stuff, tablename):
         self.c.execute("INSERT INTO {}(Time, PositionId, Spectrum_Array, CPS) \
