@@ -57,6 +57,7 @@ import datetime as dt
 
 from wind_daq.utils.thrift_uuid import Thrift_UUID
 from wind_daq.utils.database import DatabaseOperations
+from wind_daq.utils.camera import CameraStream
 import numpy as np
 
 ######### VN 300 Libraries ##########
@@ -340,19 +341,37 @@ class PTU:
         modalityconfiguration = SensorModalityConfiguration(
             videoConfiguration=streamingconfiguration_template)
 
-        self.contextStreamConfiguration = ContextStreamConfiguration(
-            componentId=streamingconfiguration_template.componentId,
+        self.uuid_dict['yolo_stream'] = Thrift_UUID.generate_thrift_uuid()
+        self.uuid_dict['siamfc_stream'] = Thrift_UUID.generate_thrift_uuid()
+
+        self.contextStreamConfiguration = []
+
+        self.contextStreamConfiguration += [ContextStreamConfiguration(
+            componentId=self.uuid_dict['yolo_stream'],
             componentPositionAndOrientation=streamingconfiguration_template.componentPositionAndOrientation,
             modalityConfiguration=modalityconfiguration,
-            timeStamp=int(time.time()))
+            timeStamp=int(time.time()))]
+        self.contextStreamConfiguration += [ContextStreamConfiguration(
+            componentId=self.uuid_dict['siamfc_stream'],
+            componentPositionAndOrientation=streamingconfiguration_template.componentPositionAndOrientation,
+            modalityConfiguration=modalityconfiguration,
+            timeStamp=int(time.time()))]
 
-        self.contextStreamDefinition = ContextStreamDefinition(
+        self.contextStreamDefinition = []
+        self.contextStreamDefinition += [ContextStreamDefinition(
             component=streamingdefinition_template.component,
             streamFormat=None,
-            streamAddress=None,
+            streamAddress='./images/yolo/',
             formatVerion=None,
             documentationURI=None,
-            configuration=self.contextStreamConfiguration)
+            configuration=self.contextStreamConfiguration[0])]
+        self.contextStreamDefinition += [ContextStreamDefinition(
+            component=streamingdefinition_template.component,
+            streamFormat=None,
+            streamAddress='./images/siamfc/',
+            formatVerion=None,
+            documentationURI=None,
+            configuration=self.contextStreamConfiguration[1])]
         return
 
     def get_systemDefinition(self):
@@ -483,7 +502,7 @@ class PTU:
             args=(self.gammaHandlingState,))
         self.caenlib_thread.start()
         time.sleep(10)
-        print('started caenlib')
+        print('started caenlib spool')
         # t1.join()
         # NOTE: Have to test by setting self.gammaHandlingState to not zero and check in C.
         # Make sure it's reading from the pointer directly in each loop.
@@ -536,12 +555,13 @@ class PTU:
         return gammaSpectrumData, gammaGrossCountData
 
     def get_streamIndexData(self):
-        streamTime = self.contextStreamConfiguration.timestamp - (time.time() *
-                                                                  1000)
-        x = ContextStreamIndexData(
-            componentId=self.contextStreamConfiguration.componentId,
-            timestamp=time.time()*1000,
-            streamTimeStamp=streamTime)
+        streamTime = time.time()
+        x = []
+        for key in self.camera:
+            x += [ContextStreamIndexData(
+                componentId=self.uuid_dict[key],
+                timestamp=time.time(),
+                streamTimeStamp=streamTime)]
         return x
 
     def measurement_spool(self, measurement_time):
@@ -580,7 +600,7 @@ class PTU:
             boundingboxes = []
             markers = []
             algorithmData = []
-            streamIndexData = [self.streamIndexData]
+            streamIndexData = self.streamIndexData
             configuration = [self.systemConfiguration]
 
             dataPayload = DataPayload(
@@ -704,14 +724,6 @@ class PTU:
         self.db = DatabaseOperations('./PTU_local.sqlite3')
         self.db.initialize_structure(numdetectors=4)
 
-        # self.initialize_measurement_thread(gammaFilenames)
-        # QUESTION: Start threads threads here, they populate self.package.
-        # self.spool_measurement_thread()
-        # NOTE: I may have to de classify spool_measurement_thread, why may be tricky since it needs the self.payload attribute.
-        # self.thread = Thread(target=self.measurement_spool,
-        #                      name='measurement_packaging')
-        # self.thread.start()
-
         # starting gamma sensor services.
         measurement_time = 300
         self.payload = None
@@ -724,15 +736,25 @@ class PTU:
             target=self.measurement_spool,
             args=(measurement_time,),
             name='payload_spool')
-        # self.payload_thread = Timer(measurement_time,
-        #                             self.measurement_spool,
-        #                             args=(measurement_time,))
         self.payload_thread.start()
 
         # starting navigation services.
         # self.start_gps()
-        timetosleep = 0
 
+        # start camera acquisition
+        self.camera = {}
+        self.camera['yolo_stream'] = CameraStream(
+            src=0,
+            fps=1,
+            file_prefix='./images/raw/yolo/yolo_image')
+        self.camera['siamfc_stream'] = CameraStream(
+            src=0,
+            fps=15,
+            file_prefix='./images/raw/siam/siamfc_image')
+
+        self.camera['yolo_stream'].start()
+        self.camera['siamfc_stream'].start()
+        timetosleep = 0
         for lol in range(measurement_time):
             # NOTE: There should be a sleep for one second for each independent process.
             # NOTE: Fixed time.sleep messes with the payload. Needs to be variable time.sleep().I assume each process takes less than one second.
