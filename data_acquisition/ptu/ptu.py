@@ -264,7 +264,7 @@ class PTU:
 
         component = ComponentDefinition(
             componentId=self.uuid_dict['GPS'],
-            componentName='VectorNav VN-300-DEV',
+            componentName='VectorNav_VN-300-DEV',
             vendorName='VectorNav',
             serialNumber='100033618')
         navOutputDefinition = NavigationOutputDefinition(
@@ -561,7 +561,9 @@ class PTU:
             x += [ContextStreamIndexData(
                 componentId=self.uuid_dict[key],
                 timestamp=time.time(),
-                streamTimeStamp=streamTime)]
+                # streamTimeStamp=streamTime)]  # not exactly right. We should
+                # grab this from the index from the camera stream class.
+                streamTimeStamp=self.camera[key].image_index)]
         return x
 
     def measurement_spool(self, measurement_time):
@@ -722,7 +724,7 @@ class PTU:
                                     self.recordingUpdate)
 
         self.db = DatabaseOperations('./PTU_local.sqlite3')
-        self.db.initialize_structure(numdetectors=4)
+        self.db.initialize_structure(self.systemDefinition)
 
         # starting gamma sensor services.
         measurement_time = 300

@@ -2,6 +2,7 @@
 import numpy as np
 import sqlite3
 import time
+from PTUPayload.ttypes import SystemDefinition
 
 
 class DatabaseOperations(object):
@@ -11,43 +12,57 @@ class DatabaseOperations(object):
         self.conn = sqlite3.connect(self.filename)
         self.c = self.conn.cursor()
 
-    def initialize_structure(self, numdetectors=None):
+    # def initialize_structure(self, numdetectors=None):
+    def initialize_structure(self, systemdefinition):
+        self.uuid2table = {}
         # with unit configuration, initialize the entire configuration
         # I may need much more than config to be fair.
 
         # QUESTION: Should CPS be real or int?
         # QUESTION: Should long and lat be real or int?
-        if numdetectors is not None:
-            for i in range(numdetectors):
-                self.c.execute('''CREATE TABLE IF NOT EXISTS det_{}(Time
-                               integer, PositionId integer, Spectrum_Array
-                               text, CPS real)'''.format(i))
-        else:
-            self.c.execute('''CREATE TABLE IF NOT EXISTS det_0(Time integer,
-                           PositionId integer, Spectrum_Array text,
-                           CPS real)'''.format(i))
+        # if numdetectors is not None:
+        #     for i in range(numdetectors):
+        #         self.c.execute('''CREATE TABLE IF NOT EXISTS det_{}(Time
+        #                        integer, PositionId integer, Spectrum_Array
+        #                        text, CPS real)'''.format(i))
+        # else:
+        #     self.c.execute('''CREATE TABLE IF NOT EXISTS det_0(Time integer,
+        #                    PositionId integer, Spectrum_Array text,
+        #                    CPS real)'''.format(i))
+        # Here I am creating the spectrum tables using the system definition.
+        for i in range(len(systemdefinition.gammaSpectrumDefinitions)):
+            self.c.execute('''CREATE TABLE IF NOT EXISTS det_{}(Time integer,
+                           PositionId integer, Spectrum_Array text, CPS
+                           real)'''.format(i))
 
         self.c.execute('''CREATE TABLE IF NOT EXISTS gps(Time integer,
                        Longitude real, Latitude real,
                        NumberofSatellites integer)''')
 
         self.c.execute('''CREATE TABLE IF NOT EXISTS videofusion(Time integer,
-                       imagedir string, detection_image_filename string,
+                       detection_image_filename string,
                        tracking_image_filename_prefix string,
-                       num_images_tracking integer,
+                       tracking_image_startindex integer,
+                       tracking_image_stopindex integer,
                        fusion_result_image_filename string''')
+        # There are two videostreams, how do I know which one is siamfc and the
+        # other is deteection
 
-    def fake_stack_datum(self, stuff, tablename):
-        self.c.execute("INSERT INTO {}(Time, PositionId, Spectrum_Array, CPS) \
-            VALUES ({}, {}, {}, {});".format(
-            # tablename, int(time.time() * 1000), stuff[0], stuff[1], stuff[2]))
-            tablename, stuff[0], stuff[1], stuff[2], stuff[3]))
-        self.conn.commit()
-        return
+        for i in range(len(systemdefinition.contextStreamDefinitions)):
+            piece = systemdefinition.contextStreamConfigurations[i]
+            self.uuid2table[piece.componentId] = {
+                'streamAddress': piece.streamAddress,
+                'configuration': piece.configuration,
+                'component': piece.component,
+                'start_time': time.time()}
+        self.lasttime = {}
+        self.lasttime['siamfc_stream'] = 0
+        self.lasttime['yolo_stream'] = 0
 
     def stack_datum(self, datum):
         gamma_flag = True
         gps_flag = True
+        camera_flag = True
         print('stacking datum')
         if datum is None:
             print('no data')
@@ -59,6 +74,9 @@ class DatabaseOperations(object):
         elif datum.navigationData is None:
             print('no gps data in datum')
             gps_flag = False
+        elif datum.streamIndexData is None:
+            print('no videostreaming data in datum')
+            camera_flag = False
         print(datum)
         c = time.time()
         if gamma_flag:
@@ -93,6 +111,36 @@ class DatabaseOperations(object):
 
                 self.c.execute("INSERT INTO gps(Time, Latitude, Longitude) VALUES ({}, {}, {});".format(
                     timestamp, latitude, longitude))
+
+        if camera_flag:
+            print('========\n======\nIHAVECAMERAFOTO\n===========\n======')
+            for i in range(len(datum.streamIndexData)):
+                piece = datum.streamIndexData[i]
+                # determine if this is siamfc or yolo
+                address = self.uuid2table[piece.componentId]['streamAddress']
+                if re.search('siam', address):
+                    # figure out how many photos have been taken in this
+                    # period.
+                    tracking_image_startindex = self.lasttime['siamfc_stream']
+                    tracking_image_stopindex = int(piece.streamTimeStamp)
+                    self.lasttime['siamfc_stream'] = piece.streamTimeStamp + 1
+                    tracking_image_prefix = address
+                elif re.search('yolo', address):
+                    detection_image = '{}_{}.jpg'.format(address,
+                                                         int(piece.streamTimeStamp))
+            timestamp = int(time.time())
+            fusion_result_image = '{}_{}_{}.jpg'.format(
+                'fusionresult',
+                tracking_image_prefix,
+                tracking_image_stopindex)
+
+            self.c.execute("INSERT INTO videofusion(Time,
+                           detection_image_filename, tracking_image_filename_prefix, tracking_image_startindex, tracking_image_stopindex, fusion_result_image_filename) VALUES ({}, {}, {}, {}, {}, {});".format(timestamp,
+                                           detection_image,
+                                           tracking_image_prefix,
+                                           tracking_image_startindex,
+                                           tracking_image_stopindex,
+                                           fusion_result_image))
 
         self.conn.commit()
         d = time.time()
