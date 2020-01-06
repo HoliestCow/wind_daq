@@ -258,6 +258,7 @@ class PTU:
 
         return
 
+
     def get_navigationDefinitions(self):
 
         self.navigationDefinitions = []
