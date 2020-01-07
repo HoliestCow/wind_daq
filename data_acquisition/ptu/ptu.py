@@ -1,7 +1,10 @@
 
 ############### PTU STUFF ###############
 # for getting data out of the CAEN digitizer
-import caenlib
+# import caenlib
+
+# Class for getting data out of Compass CSVs
+from wind_daq.data_acquisition.ptu.libs.compass.readout import CompassReadout
 
 import CVRSServices.CVRSEndpoint
 from PTUPayload.ttypes import (UnitDefinition, UnitType, Status,
@@ -72,10 +75,11 @@ from wind_daq.utils.threads import StoppableThread
 
 
 class PTU:
-    def __init__(self):
+    def __init__(self, dataDir):
         self.uuid_dict = {}
         self.start_clock = dt.datetime.now()
         self.counter = 0
+        self.dataDir = dataDir
 
     def initialize_unitDefinition(self):
         # Define what I am
@@ -528,7 +532,8 @@ class PTU:
             # gammaCounts += [np.sum(snapshots)]
             #############################################
             print('before intSpec')
-            intSpectrum = [int(x) for x in self.gammaHandlingData[i, :]]
+            # intSpectrum = [int(x) for x in self.gammaHandlingData[i, :]]
+            intSpectrum = [int(x) for x in self.readout.current_measurement[i]['energy_spectrum']]
             print('after intSpec')
             integerSpectrum = Spectrum(
                 spectrumInt=intSpectrum,
@@ -570,18 +575,18 @@ class PTU:
     def measurement_spool(self, measurement_time):
         print('starting  measurement spool')
         # for yolo in range(measurement_time):
+        self.readout = CompassReadout(self.dataDir)
         for i in range(measurement_time):
-            caenlib.reset_histograms()
             if self.payload_thread.stopped():
                 break
             time.sleep(1)
-            caenlib.update_histograms(self.gammaHandlingData)
+            # caenlib.update_histograms(self.gammaHandlingData)
+            self.readout.update_measurement()
             c = time.time()
             # Construct thrift objects for packaging.
             # 3) pushData
             # NOTE: Decision: I'll control frequency from here. CSVSeeker has to keep track of the index and read from that point on. This will make it more modular and when I decide to update the spool to use the CAENLibs it'll be easier to do so.
             # NOTE: Decision: I'll package, send, then dump.
-
             gammaSpectrumData, gammaGrossCountData = self.get_gammaData()
             streamIndexData = self.get_streamIndexData()
 
@@ -591,8 +596,8 @@ class PTU:
             neutronSpectrumData = []
             neutronGrossCountData = []
 
-            navigationData = []
-            # navigationData = [self.get_navigationData()]
+            # navigationData = []
+            navigationData = [self.get_navigationData()]
             # environmentalData = self.get_environmentalData()  # Temperature and pressure data from the GPS module
             videoData = []
             pointCloudData = []
@@ -730,7 +735,6 @@ class PTU:
         # starting gamma sensor services.
         measurement_time = 300
         self.payload = None
-        self.caenlib_spool()
         self.gammaHandlingState[0] = 1  # start acquisition. on the clib side
 
         # NOTE: Payload thread should sit another spool that happens every 1 second. Measurement spool should have a while true I think.
@@ -831,11 +835,6 @@ class PTU:
 
 def ptu_cleanup(ptu_object):
     ptu_object.gammaHandlingState = 3
-    time.sleep(1)  # wait for the cleanup to happen
-    ptu_object.caenlib_thread.stop()
-    time.sleep(1)
-    ptu_object.payload_thread.stop()
-    time.sleep(1)  # wait for the cleanup to happen
     ptu_object.transport.close()
     time.sleep(1)
     return
@@ -843,7 +842,8 @@ def ptu_cleanup(ptu_object):
 
 def main():
     try:
-        ptu = PTU()
+        dataDir = './'  # path to where the data is being dumped to
+        ptu = PTU(dataDir)
         ptu.main_loop()
     except Thrift.TException as tx:  # catch the thrift exceptions
         print('%s' % tx.message)
