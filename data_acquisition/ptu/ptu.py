@@ -520,7 +520,8 @@ class PTU:
         gammaSpectrumData = []
         gammaGrossCountData = []
         # for i in range(len(self.gammaHandling)):
-        for i in range(self.gammaHandlingData.shape[0]):
+        # for i in range(self.gammaHandlingData.shape[0]):
+        for i in range(self.systemDefinition.
             # NOTE: I have to figure out how this exactly works. And surely there's a step to convert long and short charge integrations into energy deposited. But I'm not sure how this is supposed to work. More testing :/
 
             # NOTE: why do I do this??
