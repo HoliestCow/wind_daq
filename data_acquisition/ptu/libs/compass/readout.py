@@ -90,7 +90,7 @@ class CompassReadout:
             reference_data = self.data[channel][reference_datetime]
             counts = data['counts'] - reference_data['counts']
             energy_spectrum = data['energy_spectrum'] - reference_data['energy_spectrum']
-            out_dict[data['channel']] = {
+            out_dict[channel] = {
                     'counts': counts,
                     'energy_spectrum': energy_spectrum,
                     'epochtime': data['epochtime'],
@@ -105,11 +105,10 @@ class CompassReadout:
         for key in self.data:
             # these keys are datetime_obj
             current = self.data[key]
-            channel = current['channel']
+            channel = key
             if channel not in timedict:
                 timedict[channel] = []
-            datetime_obj = current['datetime_obj']  # this should still work
-            timedict[channel] += [datetime_obj]
+            timedict[channel] += list(current.keys())
 
         # now the entire timedict by channel is populated.
         # Now to yank the latest one for each channel and tie it back to the filename
