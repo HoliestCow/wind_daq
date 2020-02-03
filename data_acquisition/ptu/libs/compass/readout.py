@@ -4,6 +4,7 @@ import glob
 import re
 import pytz
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 class CompassReadout:
@@ -20,22 +21,20 @@ class CompassReadout:
             os.mkdir(self.archive_dir)
         return
 
-    def process_filenames(self, list_of_filenames):
+    def process_files(self, list_of_filenames):
         channels = []
         times = []
-        outdict = {}  # dict keyed with the filename. This will be a dict of dict
+        outdict = {}
         for filename in list_of_filenames:
             # remove the fileextension off the filename
             filename_path = os.path.split(filename)[-1]
             just_filename = os.path.splitext(filename_path)[0]
 
-            answers = {'datetime_obj': None,
-                       'epochtime': None,
-                       'channel': None}
-            
             channel_string = re.split('@', just_filename)[0]
             channel_number = re.findall(r'\d+', channel_string)[0]  # guaranteed to be one number
-            answers['channel'] = channel_number
+
+            if channel_number not in outdict:
+                outdict[channel_number] = {}
 
             split_string = re.split('_', just_filename)
             date_string = split_string[-2]
@@ -44,7 +43,9 @@ class CompassReadout:
             datetime_obj = datetime.datetime.strptime(datetime_string, '%Y%m%d_%H%M%S')  # time input is probably in EST
             EST = pytz.timezone('US/Eastern')
             datetime_obj = EST.localize(datetime_obj)
-
+            
+            outdict[channel_number][datetime_obj] = {}
+            answers = outdict[channel_number][datetime_obj]
             answers['datetime_obj'] = datetime_obj
 
             # answers['epochtime'] = (datetime_obj - datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)).total_seconds()
@@ -52,22 +53,24 @@ class CompassReadout:
             answers['datestr'] = date_string
             answers['timestr'] = time_string
 
-            outdict[filename] = answers
-        return outdict
+            answers['filename'] = filename
 
-    def readout_files(self, filelist):
-        outdict = {}
-        for filename in filelist:
             f = open(filename , 'r')
             a = f.readlines()
             total_counts = int(a[0].strip())
-            histogram = []
+            histogram = np.zeros((2**14, ), dtype=int)
+            counter = 0
             for line in a:
                 meh = line.strip()
-                histogram += [int(meh)]
-            outdict[filename] = {'counts': total_counts,
-                                 'energy_spectrum': np.array(histogram)}
-        return outdict
+                histogram[counter] = int(meh)
+                counter += 1
+
+            answers['counts'] = total_counts
+            answers['energy_spectrum'] = np.array(histogram)
+
+            outdict[channel_number][datetime_obj] = answers
+        self.data = outdict
+        return
 
     def archive_files(self, filelist):
         for filename in filelist:
@@ -77,54 +80,79 @@ class CompassReadout:
             os.rename(absolute_path_before, absolute_path_after)
         return
 
-    def pair_data(self, filelist, meta, measurement):
+    def pair_data(self):
+        # Take the meta data, and pair the current and previous timestamps.
         out_dict = {}
-        print(filelist)
-        for filename in filelist:
-            metadata = meta[filename]
-            if metadata['datetime_obj'] != self.latest_datetimes[metadata['channel']]:
-                continue
-            print('here')
-            measured_data = measurement[filename]
-            out_dict[metadata['channel']] = {
-                    'counts': measured_data['counts'],
-                    'energy_spectrum': measured_data['energy_spectrum'],
-                    'epochtime': metadata['epochtime'],
-                    'datetime_obj': metadata['datetime_obj'],
-                    'datestr': metadata['datestr'],
-                    'timestr': metadata['timestr']}
-        return out_dict
+        for channel in self.current_datetime:
+            current_datetime = self.current_datetime[channel]
+            data = self.data[channel][current_datetime]
+            reference_datetime = self.reference_datetime[channel]
+            reference_data = self.data[channel][reference_datetime]
+            counts = data['counts'] - reference_data['counts']
+            energy_spectrum = data['energy_spectrum'] - reference_data['energy_spectrum']
+            out_dict[data['channel']] = {
+                    'counts': counts,
+                    'energy_spectrum': energy_spectrum,
+                    'epochtime': data['epochtime'],
+                    'datetime_obj': data['datetime_obj'],
+                    'datestr': data['datestr'],
+                    'timestr': data['timestr']}
+        self.current_measurement = out_dict
+        return
 
-    def get_latest_datetime_per_channel(self, meta_data):
+    def get_latest_datetime_per_channel(self):
         timedict = {}  # by channel
-        chosen_datetime = {}
-        for key in meta_data:
-            current = meta_data[key]
+        for key in self.data:
+            # these keys are datetime_obj
+            current = self.data[key]
             channel = current['channel']
             if channel not in timedict:
                 timedict[channel] = []
-            datetime_obj = current['datetime_obj']
+            datetime_obj = current['datetime_obj']  # this should still work
             timedict[channel] += [datetime_obj]
 
         # now the entire timedict by channel is populated.
         # Now to yank the latest one for each channel and tie it back to the filename
+        chosen_datetime = {}
+        previous_datetime = {}
         for channel in timedict:
-            chosen_datetime[channel] = max(timedict[channel])
-            
-        return chosen_datetime
+            # have to yank the max time and the second to max time.
+            # This is so I can get that seconds worth of data via subtraction.
+            timedict[channel].sort()
+            previous_datetime[channel] = timedict[channel][-2]
+            chosen_datetime[channel] = timedict[channel][-1]
+        self.current_datetime = chosen_datetime
+        self.reference_datetime = previous_datetime
+        return 
 
     def update_measurement(self):
         self.current_measurement = None
         # analyze files in the default location
         filelist = glob.glob(os.path.join(self.readout_dir, '*.txt'))
-        print(filelist)
         # meta_data and measurement_data are keyed with filename
-        meta_data = self.process_filenames(filelist)
+        self.process_files(filelist)  # indexed by datetime_obj now
         # TODO: choose latest file for each channel
-        self.latest_datetimes = self.get_latest_datetime_per_channel(meta_data)
+        self.get_latest_datetime_per_channel()
 
-        measurement_data = self.readout_files(filelist)
-        output_data = self.pair_data(filelist, meta_data, measurement_data)  # reorganize to make a dict keyed by channel.
+        self.pair_data()  # reorganize to make a dict keyed by channel.
         self.archive_files(filelist)  # last step
-        self.current_measurement = output_data  # organized by channel
+        return
+
+    def plotvstime(self):
+        for channel in self.data:
+            time = []
+            counts = []
+            for datetime_obj in self.data[channel]:
+                time += [datetime_obj]
+                counts += [self.data[channel][datetime_obj]['counts']]
+            fig = plt.figure()
+            plt.plot(time, counts, '.')
+            fig.savefig('channel{}_countsvstime.png'.format(channel))
+            plt.close()
+        return
+
+    def plot_all_measurements(self):
+        filelist = glob.glob(os.path.join(self.readout_dir, '*.txt'))
+        self.process_files(filelist)
+        self.plotvstime()
         return

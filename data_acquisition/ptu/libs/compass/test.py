@@ -1,10 +1,9 @@
-from readout import CompassReadout
-
+from readout import CompassReadout 
 def main():
-    readout = CompassReadout('../../testing_data/')
+
+    # readout = CompassReadout('../../testing_data/')
+    readout = CompassReadout('/home/holiestcow/Documents/winds/thrift/wind_daq/data_acquisition/ptu/testing_data/run/UNFILTERED/')
     readout.update_measurement()
-    print(readout.current_measurement)
-    print(readout.latest_datetimes)
     return
 
 main()
