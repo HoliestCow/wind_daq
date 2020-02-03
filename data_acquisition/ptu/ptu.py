@@ -69,7 +69,7 @@ from wind_daq.data_acquisition.ptu.libs.vectornav.vnpy import *
 ##### Other utilities
 
 # from threading import Thread
-from wind_daq.utils.threads import StoppableThread
+from wind_daq.data_acquisition.utils.threads import StoppableThread
 
 ########## DONE IMPORTING ################
 
