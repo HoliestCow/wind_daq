@@ -127,7 +127,7 @@ class CVRSHandler(Iface):
         # this may just be sessionId. I'm not sure if this is a Session object or not. (sessionId.sessionId)
         if sessionId == self.current_sessionId:
             ptu_message = []
-            self.db.initialize_structure(numdetectors=4)
+            self.db.initialize_structure(systemDefinition)
             return ptu_message
         else:
             # Sessions ID does not match.

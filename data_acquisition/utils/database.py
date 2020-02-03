@@ -44,17 +44,17 @@ class DatabaseOperations(object):
                        tracking_image_filename_prefix string,
                        tracking_image_startindex integer,
                        tracking_image_stopindex integer,
-                       fusion_result_image_filename string''')
+                       fusion_result_image_filename string)''')
         # There are two videostreams, how do I know which one is siamfc and the
         # other is deteection
-
-        for i in range(len(systemdefinition.contextStreamDefinitions)):
-            piece = systemdefinition.contextStreamConfigurations[i]
-            self.uuid2table[piece.componentId] = {
-                'streamAddress': piece.streamAddress,
-                'configuration': piece.configuration,
-                'component': piece.component,
-                'start_time': time.time()}
+        if systemdefinition.contextStreamDefinitions is not None:
+            for i in range(len(systemdefinition.contextStreamDefinitions)):
+                piece = systemdefinition.contextStreamConfigurations[i]
+                self.uuid2table[piece.componentId] = {
+                    'streamAddress': piece.streamAddress,
+                    'configuration': piece.configuration,
+                    'component': piece.component,
+                    'start_time': time.time()}
         self.lasttime = {}
         self.lasttime['siamfc_stream'] = 0
         self.lasttime['yolo_stream'] = 0
@@ -62,7 +62,7 @@ class DatabaseOperations(object):
     def stack_datum(self, datum):
         gamma_flag = True
         gps_flag = True
-        camera_flag = True
+        camera_flag = False
         print('stacking datum')
         if datum is None:
             print('no data')

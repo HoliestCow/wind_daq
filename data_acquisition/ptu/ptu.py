@@ -356,27 +356,27 @@ class PTU:
             componentPositionAndOrientation=streamingconfiguration_template.componentPositionAndOrientation,
             modalityConfiguration=modalityconfiguration,
             timeStamp=int(time.time()))]
-        self.contextStreamConfiguration += [ContextStreamConfiguration(
-            componentId=self.uuid_dict['siamfc_stream'],
-            componentPositionAndOrientation=streamingconfiguration_template.componentPositionAndOrientation,
-            modalityConfiguration=modalityconfiguration,
-            timeStamp=int(time.time()))]
+        # self.contextStreamConfiguration += [ContextStreamConfiguration(
+        #     componentId=self.uuid_dict['siamfc_stream'],
+        #     componentPositionAndOrientation=streamingconfiguration_template.componentPositionAndOrientation,
+        #     modalityConfiguration=modalityconfiguration,
+        #     timeStamp=int(time.time()))]
 
         self.contextStreamDefinition = []
         self.contextStreamDefinition += [ContextStreamDefinition(
             component=streamingdefinition_template.component,
             streamFormat=None,
             streamAddress='./images/yolo/',
-            formatVerion=None,
+            formatVersion=None,
             documentationURI=None,
             configuration=self.contextStreamConfiguration[0])]
-        self.contextStreamDefinition += [ContextStreamDefinition(
-            component=streamingdefinition_template.component,
-            streamFormat=None,
-            streamAddress='./images/siamfc/',
-            formatVerion=None,
-            documentationURI=None,
-            configuration=self.contextStreamConfiguration[1])]
+        # self.contextStreamDefinition += [ContextStreamDefinition(
+        #     component=streamingdefinition_template.component,
+        #     streamFormat=None,
+        #     streamAddress='./images/siamfc/',
+        #     formatVersion=None,
+        #     documentationURI=None,
+        #     configuration=self.contextStreamConfiguration[1])]
         return
 
     def get_systemDefinition(self):
@@ -400,8 +400,8 @@ class PTU:
             # navigationSensorDefinitions=self.navigationDefinitions,
             # contextVideoDefinitions=self.contextVideoDefinitions,
             timeStamp=int(time.time()),
-            apiVersion='yolo',
-            contextStreamDefinitions=self.streamDefinition)
+            apiVersion='yolo')
+            # contextStreamDefinitions=self.contextStreamDefinition) # this is fucked up. For some reason there's a tuple inside here.
 
         return
 
@@ -724,18 +724,19 @@ class PTU:
         self.get_systemDefinition()
         self.get_systemConfiguration()
         self.get_recordingUpdate()
-
+        print('defininig')
         ptu_message = client.define(session.sessionId, self.status,
                                     self.systemDefinition, self.systemConfiguration,
                                     self.recordingUpdate)
-
+        print('defined')
+        print('initializing db')
         self.db = DatabaseOperations('./PTU_local.sqlite3')
         self.db.initialize_structure(self.systemDefinition)
 
         # starting gamma sensor services.
         measurement_time = 300
         self.payload = None
-        self.gammaHandlingState[0] = 1  # start acquisition. on the clib side
+        # self.gammaHandlingState[0] = 1  # start acquisition. on the clib side
 
         # NOTE: Payload thread should sit another spool that happens every 1 second. Measurement spool should have a while true I think.
 
@@ -753,14 +754,9 @@ class PTU:
         self.camera['yolo_stream'] = CameraStream(
             src=0,
             fps=1,
-            file_prefix='./images/raw/yolo/yolo_image')
-        self.camera['siamfc_stream'] = CameraStream(
-            src=0,
-            fps=15,
-            file_prefix='./images/raw/siam/siamfc_image')
+            file_prefix='./images/raw/')
 
         self.camera['yolo_stream'].start()
-        self.camera['siamfc_stream'].start()
         timetosleep = 0
         for lol in range(measurement_time):
             # NOTE: There should be a sleep for one second for each independent process.
@@ -824,7 +820,7 @@ class PTU:
             print('time elapsed: {}'.format(b - a))
             timetosleep = 1 - (b - a)
         # NOTE: Frankly I should never get to the close, since I'll be infinitely looping
-        self.gammaHandlingState[0] = 3
+        # self.gammaHandlingState[0] = 3
         time.sleep(1)
         self.caenlib_thread.stop()
         self.payload_thread.stop()

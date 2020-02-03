@@ -178,13 +178,9 @@ class Client(Iface):
         args.systemDefinition = systemDefinition
         args.systemConfiguration = systemConfiguration
         args.recordingUpdate = recordingUpdate
-        print('here')
         args.write(self._oprot)
-        print('made it')
         self._oprot.writeMessageEnd()
-        print('made it 2')
         self._oprot.trans.flush()
-        print('made it 3')
 
     def recv_define(self):
         iprot = self._iprot
