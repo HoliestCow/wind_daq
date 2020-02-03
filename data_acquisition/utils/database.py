@@ -134,7 +134,7 @@ class DatabaseOperations(object):
                 tracking_image_prefix,
                 tracking_image_stopindex)
 
-            self.c.execute("INSERT INTO videofusion(Time,
+            self.c.execute("INSERT INTO videofusion(Time,\
                            detection_image_filename, tracking_image_filename_prefix, tracking_image_startindex, tracking_image_stopindex, fusion_result_image_filename) VALUES ({}, {}, {}, {}, {}, {});".format(timestamp,
                                            detection_image,
                                            tracking_image_prefix,

@@ -1,2 +1,2 @@
 
-from database import DatabaseOperations
+from .database import DatabaseOperations

@@ -58,9 +58,9 @@ import datetime as dt
 
 ############ Database Stuff ##############
 
-from wind_daq.utils.thrift_uuid import Thrift_UUID
-from wind_daq.utils.database import DatabaseOperations
-from wind_daq.utils.camera import CameraStream
+from wind_daq.data_acquisition.utils.thrift_uuid import Thrift_UUID
+from wind_daq.data_acquisition.utils.database import DatabaseOperations
+from wind_daq.data_acquisition.utils.camera import CameraStream
 import numpy as np
 
 ######### VN 300 Libraries ##########
@@ -842,7 +842,8 @@ def ptu_cleanup(ptu_object):
 
 def main():
     try:
-        dataDir = './'  # path to where the data is being dumped to
+        # dataDir = './'  # path to where the data is being dumped toa
+        dataDir = '/home/daq/Documents/caen_drivers_programs/CoMPASS-1.3.0/projects/wind/DAQ/run/UNFILTERED/'  # This is from the default run thing
         ptu = PTU(dataDir)
         ptu.main_loop()
     except Thrift.TException as tx:  # catch the thrift exceptions
