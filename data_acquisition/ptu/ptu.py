@@ -201,10 +201,10 @@ class PTU:
                 efficiency=angularEfficiencies)
             angularEfficiencyDefinitions += [angularEfficiency]
 
-        self.gammaSpectrumDefinitions = [
+        self.gammaSpectrumDefinitions = 4 * [
             GammaListAndSpectrumDefinition(
                 component=component,
-                numberOfChannels=1024,
+                numberOfChannels=1024,  # TODO: Check this number. It might be 16s and 8s
                 physicalDimensions=physicalDimensions,
                 detectorMaterial=detectorMaterial,
                 startingGammaConfiguration=gammaSpectrumConfig,
@@ -214,7 +214,7 @@ class PTU:
             componentId=self.uuid_dict['GammaDetector'],
             componentPositionAndOrientation=componentPositionAndOrientation)
 
-        self.gammaGrossCountDefinitions = [
+        self.gammaGrossCountDefinitions = 4 * [
             GammaGrossCountDefinition(
                 component=component,
                 physicalDimensions=physicalDimensions,
