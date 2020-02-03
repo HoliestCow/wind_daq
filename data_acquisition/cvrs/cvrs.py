@@ -42,8 +42,8 @@ import sqlite3
 ############ Database Stuff ##############
 
 # from .thrift_uuid import *
-from wind_daq.utils.thrift_uuid import Thrift_UUID
-from wind_daq.utils.database import DatabaseOperations
+from wind_daq.data_acquisition.utils.thrift_uuid import Thrift_UUID
+from wind_daq.data_acquisition.utils.database import DatabaseOperations
 
 # from thrift_uuid import Thrift_UUID
 
