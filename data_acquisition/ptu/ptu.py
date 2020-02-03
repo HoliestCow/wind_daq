@@ -64,7 +64,7 @@ from wind_daq.data_acquisition.utils.camera import CameraStream
 import numpy as np
 
 ######### VN 300 Libraries ##########
-from vnpy import *
+from wind_daq.data_acquisition.ptu.libs.vectornav.vnpy import *
 
 ##### Other utilities
 
