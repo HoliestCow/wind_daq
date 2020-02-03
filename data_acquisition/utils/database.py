@@ -2,7 +2,7 @@
 import numpy as np
 import sqlite3
 import time
-from PTUPayload.ttypes import SystemDefinition
+from wind_daq.windthrift.PTUPayload.ttypes import SystemDefinition
 
 
 class DatabaseOperations(object):

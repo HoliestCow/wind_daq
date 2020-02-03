@@ -5,3 +5,4 @@
 
 from .algorithms import *
 from .data_acquisition import *
+from .windthrift import *
