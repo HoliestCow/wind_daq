@@ -201,19 +201,41 @@ class PTU:
                 efficiency=angularEfficiencies)
             angularEfficiencyDefinitions += [angularEfficiency]
 
-        self.gammaSpectrumDefinitions = 4 * [
-            GammaListAndSpectrumDefinition(
-                component=component,
-                numberOfChannels=1024,  # TODO: Check this number. It might be 16s and 8s
-                physicalDimensions=physicalDimensions,
-                detectorMaterial=detectorMaterial,
-                startingGammaConfiguration=gammaSpectrumConfig,
-                angularEfficiencies=angularEfficiencyDefinitions)]
+        # self.gammaSpectrumDefinitions = 4 * [
+        #     GammaListAndSpectrumDefinition(
+        #         component=component,
+        #         numberOfChannels=1024,  # TODO: Check this number. It might be 16s and 8s
+        #         physicalDimensions=physicalDimensions,
+        #         detectorMaterial=detectorMaterial,
+        #         startingGammaConfiguration=gammaSpectrumConfig,
+        #         angularEfficiencies=angularEfficiencyDefinitions)]
+
+        # This is 2 16k channel dets for the NaI and 2 8k channels for the CLYC
+        # TODO: Measure and input the proper angular efficiencies.
+        self.gammaSpectrumDefinitions = []
+        self.gammaSpectrumDefinitions += 2 * [
+                GammaListAndSpectrumDefinition(
+                    component=component,
+                    numberOfChannels=2**14,
+                    physicalDimensions=physicalDimensions,
+                    detectorMaterial=detectorMaterial,
+                    startingGammaConfiguration=gammaSpectrumConfig,
+                    angularEfficiencies=angularEfficiencyDefinitions)]
+        self.gammaSpectrumDefinitions += 2 * [
+                GammaListAndSpectrumDefinition(
+                    component=component,
+                    numberOfChannels=2**13,
+                    physicalDimensions=physicalDimensions,
+                    detectorMaterial=detectorMaterial,
+                    startingGammaConfiguration=gammaSpectrumConfig,
+                    angularEfficiencies=angularEfficiencyDefinitions)]
+
 
         gammaGrossCountConfiguration = GammaGrossCountConfiguration(
             componentId=self.uuid_dict['GammaDetector'],
             componentPositionAndOrientation=componentPositionAndOrientation)
 
+        # This should hold for both the original place holder config and the 2 NAI 2 CLYC case.
         self.gammaGrossCountDefinitions = 4 * [
             GammaGrossCountDefinition(
                 component=component,
