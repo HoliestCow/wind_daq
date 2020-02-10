@@ -91,6 +91,12 @@ class PTU:
                                              unitType=UnitType.Wearable)
         return
 
+    def get_time(self):
+        now = dt.datetime.now()
+        epoch = dt.datetime(year=1970, month=1, day=1)
+        timesinceepoch = int((now-epoch).total_seconds())
+        return timesinceepoch
+
     def initialize_uuids(self):
         # Initialize UUIDs which should remain constant.
         x = Thrift_UUID.generate_thrift_uuid()
@@ -133,7 +139,7 @@ class PTU:
                              recordingId=self.uuid_dict['recordingId'],
                              hardDriveUsedPercent=0.0,  # Placeholder value
                              batteryRemainingPercent=0.0,  # Placeholder value
-                             systemTime=int(time.time()))
+                             systemTime=self.get_time())
         return
 
     def get_gammaDefinitions(self):
@@ -353,7 +359,7 @@ class PTU:
             isRectified=False,  # Correlating perspective from multiple spatial positions. Should be true for stereo cameras
             intrinsics=cameraIntrinsics,
             isDeBayered=False,  # Partial colors converted into full colors
-            timeStamp=int(time.time()))
+            timeStamp=self.get_time())
         # # NOTE: there's also "intrinsics" if isRectified is False.
         self.contextVideoDefinitions += [
             ContextVideoDefinition(
@@ -377,7 +383,7 @@ class PTU:
             componentId=self.uuid_dict['yolo_stream'],
             componentPositionAndOrientation=streamingconfiguration_template.componentPositionAndOrientation,
             modalityConfiguration=modalityconfiguration,
-            timeStamp=int(time.time()))]
+            timeStamp=self.get_time())]
         # self.contextStreamConfiguration += [ContextStreamConfiguration(
         #     componentId=self.uuid_dict['siamfc_stream'],
         #     componentPositionAndOrientation=streamingconfiguration_template.componentPositionAndOrientation,
@@ -421,7 +427,7 @@ class PTU:
             # environmentalDefinitions=self.environmentDefinitions,
             # navigationSensorDefinitions=self.navigationDefinitions,
             # contextVideoDefinitions=self.contextVideoDefinitions,
-            timeStamp=int(time.time()),
+            timeStamp=self.get_time(),
             apiVersion='yolo')
             # contextStreamDefinitions=self.contextStreamDefinition) # this is fucked up. For some reason there's a tuple inside here.
 
@@ -503,7 +509,7 @@ class PTU:
             fileName='PTU_local.sqlite3',
             recordingType=RecordingType.Measurement,
             recordingDuration=0,
-            POSIXStartTime=int(time.time()),
+            POSIXStartTime=self.get_time(),
             measurementNumber=1)
 
         self.recordingUpdate = RecordingUpdate(recordingConfig=self.recordingConfig)
@@ -556,7 +562,13 @@ class PTU:
             #############################################
             print('before intSpec')
             # intSpectrum = [int(x) for x in self.gammaHandlingData[i, :]]
-            intSpectrum = [int(x) for x in self.readout.current_measurement[i]['energy_spectrum']]
+
+            # HACK: This is to fix that offset issue since CHannel 2 is dead.
+            if str(i) in self.readout.current_measurement:
+                intSpectrum = [int(x) for x in self.readout.current_measurement[str(i)]['energy_spectrum']]
+            else:
+                intSpectrum = [int(x) for x in self.readout.current_measurement[str(i + 1)]['energy_spectrum']]
+            print(sum(intSpectrum))
             print('after intSpec')
             integerSpectrum = Spectrum(
                 spectrumInt=intSpectrum,
@@ -569,27 +581,28 @@ class PTU:
 
             gammaSpectrumData += [GammaSpectrumData(
                 componentId=self.uuid_dict['GammaDetector'],
-                timeStamp=int(time.time()),
+                timeStamp=self.get_time(),
                 health=Health.Nominal,
                 spectrum=spectrumResult,
                 liveTime=livetime,
                 realTime=realtime)]
             gammaGrossCountData += [GammaGrossCountData(
                 componentId=self.uuid_dict['GammaDetector'],
-                timeStamp=int(time.time()),
+                timeStamp=self.get_time(),
                 health=Health.Nominal,
-                counts=sum(intSpectrum),
+                counts=int(sum(intSpectrum[100:])),
                 liveTime=livetime,
                 realTime=realtime)]
+            print(sum(intSpectrum))
         return gammaSpectrumData, gammaGrossCountData
 
     def get_streamIndexData(self):
-        streamTime = time.time()
+        streamTime = self.get_time() 
         x = []
         for key in self.camera:
             x += [ContextStreamIndexData(
                 componentId=self.uuid_dict[key],
-                timestamp=time.time(),
+                timestamp=self.get_time(),
                 # streamTimeStamp=streamTime)]  # not exactly right. We should
                 # grab this from the index from the camera stream class.
                 streamTimeStamp=self.camera[key].image_index)]
@@ -605,13 +618,13 @@ class PTU:
             time.sleep(1)
             # caenlib.update_histograms(self.gammaHandlingData)
             self.readout.update_measurement()
-            c = time.time()
+            c = time.time() 
             # Construct thrift objects for packaging.
             # 3) pushData
             # NOTE: Decision: I'll control frequency from here. CSVSeeker has to keep track of the index and read from that point on. This will make it more modular and when I decide to update the spool to use the CAENLibs it'll be easier to do so.
             # NOTE: Decision: I'll package, send, then dump.
             gammaSpectrumData, gammaGrossCountData = self.get_gammaData()
-            streamIndexData = self.get_streamIndexData()
+            # streamIndexData = self.get_streamIndexData()
 
             gammaListData = []
             gammaDoseData = []
@@ -619,8 +632,8 @@ class PTU:
             neutronSpectrumData = []
             neutronGrossCountData = []
 
-            # navigationData = []
-            navigationData = [self.get_navigationData()]
+            navigationData = []
+            # navigationData = [self.get_navigationData()]
             # environmentalData = self.get_environmentalData()  # Temperature and pressure data from the GPS module
             videoData = []
             pointCloudData = []
@@ -631,12 +644,13 @@ class PTU:
             boundingboxes = []
             markers = []
             algorithmData = []
-            streamIndexData = self.streamIndexData
+            # streamIndexData = self.streamIndexData
+            streamIndexData = []
             configuration = [self.systemConfiguration]
 
             dataPayload = DataPayload(
                 unitId=self.uuid_dict['PTU'],
-                timeStamp=int(time.time()),
+                timeStamp=self.get_time(),
                 systemHealth=Health.Nominal,
                 isEOF=False,
                 # recordingConfig=recordingConfiguration,
@@ -687,7 +701,7 @@ class PTU:
         # NOTE: GPS data has to be in a list
         data = NavigationData(
             componentId=self.uuid_dict['GPS'],
-            timeStamp=int(time.time()),
+            timeStamp=self.get_time(),
             location=location,
             # position=location,
             health=Health.Nominal)
@@ -704,7 +718,7 @@ class PTU:
             mostSignificantBits=x[1])
         data = EnvironmentalSensorData(
             component=self.uuid_dict['GPS'],
-            timeStamp=int(time.time()),
+            timeStamp=self.get_time(),
             health=Health.Nominal,
             value=temp_data)
 
@@ -804,7 +818,6 @@ class PTU:
             print('Report Status {}s'.format(d - c))
             # print(self.payload)
             print('trying to pushdata')
-            print(self.payload)
             isGood = client.pushData(
                 sessionId=session.sessionId,
                 datum=self.payload,

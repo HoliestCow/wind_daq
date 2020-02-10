@@ -51,6 +51,7 @@ from wind_daq.data_acquisition.utils.database import DatabaseOperations
 ########## DONE IMPORTING ################
 
 # start_clock = dt.datetime.now()
+import datetime
 
 class CVRSHandler(Iface):
     """
@@ -261,11 +262,14 @@ if 'DYNO' in os.environ:
 
 @app.callback(Output('gps-location', 'figure'), [Input('periodic-update', 'n_intervals')])
 def get_gps(interval):
-    now = int(time.time())
+    # now = int(time.time())
+    now = get_time() 
+    time_before = now - 60
+    time_after = now
 
     con = sqlite3.connect("./CVRS_local.sqlite3")
     df = pd.read_sql_query('SELECT Latitude, Longitude FROM gps WHERE Time > "{}" AND Time <= "{}";'
-                           .format(now - 60, now), con)
+                           .format(time_before, time_after), con)
 
     trace = Scatter(
         x=list(df['Longitude']),
@@ -342,11 +346,13 @@ def get_gps(interval):
 
 @app.callback(Output('gamma-cps', 'figure'), [Input('periodic-update', 'n_intervals')])
 def gen_cps(interval):
-    now = int(time.time())
+    now = get_time()
+    time_before = now - 60
+    time_after = now
 
     con = sqlite3.connect("./CVRS_local.sqlite3")
     df = pd.read_sql_query('SELECT CPS from det_0 where Time > "{}" AND Time <= "{}";'
-                           .format(now - 60, now), con)
+                           .format(time_before, time_after), con)
 
     trace = Scatter(
         y=df['CPS'],
@@ -370,12 +376,12 @@ def gen_cps(interval):
             title='Time Elapsed (sec)'
         ),
         yaxis=dict(
-            range=[min(0, min(df['CPS'])),
-                   max(45, max(df['CPS']))],
+            range=[min(df['CPS'] - 50),
+                   max(df['CPS'] + 50)],
             showline=False,
             fixedrange=True,
             zeroline=False,
-            nticks=max(6, round(df['CPS'].iloc[-1] / 10)),
+            nticks=max(6, int(round(df['CPS'].iloc[-1] / 10))),
             title='Counts'
         ),
         margin=Margin(
@@ -472,12 +478,16 @@ def gen_cps(interval):
                # State('bin-auto', 'values')])
 # @app.callback(Output('wind-speed', 'figure'), [Input('wind-speed-update', 'n_intervals')])
 def gen_wind_histogram(interval):
-    now = int(time.time())
+    # now = int(time.time())
+    now = get_time()
+    time_before = now - 60
+    time_after = now
+    
 
     con = sqlite3.connect("./CVRS_local.sqlite3")
 
     df = pd.read_sql_query('SELECT Spectrum_Array from det_0 where Time > "{}" AND Time <= "{}";'
-                           .format(now - 20, now), con)
+                           .format(time_before, time_after), con)
 
     spectrum = df['Spectrum_Array'].apply(lambda x: np.array([float(lol) for lol in x.split(',')]))
     spectrum = spectrum.sum()
@@ -540,9 +550,15 @@ def start_thrift_server():
 
 def start_webapp_server():
     print('Starting web server.')
-    # app.run_server(host='0.0.0.0', port=9090, debug=True)
-    app.run_server(port=9090, debug=True)
+    app.run_server(host='0.0.0.0', port=9090, debug=True)
+    # app.run_server(port=9090, debug=True)
     return
+
+def get_time():
+    now = datetime.datetime.now()
+    epoch = datetime.datetime(year=1970, month=1, day=1)
+    timesinceepoch = int((now - epoch).total_seconds())
+    return timesinceepoch
 
 
 if __name__ == '__main__':

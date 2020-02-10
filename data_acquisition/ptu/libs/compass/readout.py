@@ -13,6 +13,12 @@ class CompassReadout:
         self.current_histogram = None
         self.readout_dir = dataDir
         self.archive_dir = os.path.join(self.readout_dir, "measurement_archive")
+
+        self.reference_datetime = {}
+        self.current_datetime = {}
+
+        self.data = {}
+
         self.initialize_dir_structure()
         return
 
@@ -24,17 +30,15 @@ class CompassReadout:
     def process_files(self, list_of_filenames):
         channels = []
         times = []
-        outdict = {}
         for filename in list_of_filenames:
             # remove the fileextension off the filename
             filename_path = os.path.split(filename)[-1]
             just_filename = os.path.splitext(filename_path)[0]
-
             channel_string = re.split('@', just_filename)[0]
             channel_number = re.findall(r'\d+', channel_string)[0]  # guaranteed to be one number
 
-            if channel_number not in outdict:
-                outdict[channel_number] = {}
+            if channel_number not in self.data:
+                self.data[channel_number] = {}
 
             split_string = re.split('_', just_filename)
             date_string = split_string[-2]
@@ -44,8 +48,8 @@ class CompassReadout:
             EST = pytz.timezone('US/Eastern')
             datetime_obj = EST.localize(datetime_obj)
             
-            outdict[channel_number][datetime_obj] = {}
-            answers = outdict[channel_number][datetime_obj]
+            self.data[channel_number][datetime_obj] = {}
+            answers = self.data[channel_number][datetime_obj]
             answers['datetime_obj'] = datetime_obj
 
             # answers['epochtime'] = (datetime_obj - datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)).total_seconds()
@@ -57,19 +61,22 @@ class CompassReadout:
 
             f = open(filename , 'r')
             a = f.readlines()
-            total_counts = int(a[0].strip())
+            # total_counts = int(a[0].strip())
             histogram = np.zeros((2**14, ), dtype=int)
             counter = 0
             for line in a:
                 meh = line.strip()
                 histogram[counter] = int(meh)
                 counter += 1
+            total_counts = np.sum(histogram)
+            print('================')
+            print(total_counts)
+            print('===============')
 
             answers['counts'] = total_counts
             answers['energy_spectrum'] = np.array(histogram)
 
-            outdict[channel_number][datetime_obj] = answers
-        self.data = outdict
+            self.data[channel_number][datetime_obj] = answers
         return
 
     def archive_files(self, filelist):
@@ -87,6 +94,8 @@ class CompassReadout:
             current_datetime = self.current_datetime[channel]
             data = self.data[channel][current_datetime]
             reference_datetime = self.reference_datetime[channel]
+            print(reference_datetime)
+            print(current_datetime)
             reference_data = self.data[channel][reference_datetime]
             counts = data['counts'] - reference_data['counts']
             energy_spectrum = data['energy_spectrum'] - reference_data['energy_spectrum']
@@ -97,6 +106,7 @@ class CompassReadout:
                     'datetime_obj': data['datetime_obj'],
                     'datestr': data['datestr'],
                     'timestr': data['timestr']}
+            self.reference_datetime[channel] = current_datetime
         self.current_measurement = out_dict
         return
 
@@ -118,10 +128,13 @@ class CompassReadout:
             # have to yank the max time and the second to max time.
             # This is so I can get that seconds worth of data via subtraction.
             timedict[channel].sort()
-            previous_datetime[channel] = timedict[channel][-2]
-            chosen_datetime[channel] = timedict[channel][-1]
+            if len(timedict[channel]) > 1:
+                self.reference_datetime[channel] = timedict[channel][-2]
+                chosen_datetime[channel] = timedict[channel][-1]
+            else:
+                # previous_datetime[channel] = timedict[channel][-1]
+                chosen_datetime[channel] = timedict[channel][-1]
         self.current_datetime = chosen_datetime
-        self.reference_datetime = previous_datetime
         return 
 
     def update_measurement(self):
