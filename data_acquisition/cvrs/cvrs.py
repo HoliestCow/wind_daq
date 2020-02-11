@@ -53,6 +53,21 @@ from wind_daq.data_acquisition.utils.database import DatabaseOperations
 # start_clock = dt.datetime.now()
 import datetime
 
+con = sqlite3.connect("./CVRS_local.sqlite3")
+
+colors = [
+    '#1f77b4',  # muted blue
+    '#ff7f0e',  # safety orange
+    '#2ca02c',  # cooked asparagus green
+    '#d62728',  # brick red
+    '#9467bd',  # muted purple
+    '#8c564b',  # chestnut brown
+    '#e377c2',  # raspberry yogurt pink
+    '#7f7f7f',  # middle gray
+    '#bcbd22',  # curry yellow-green
+    '#17becf'   # blue-teal
+]
+
 class CVRSHandler(Iface):
     """
     CVRSEndpoint
@@ -267,7 +282,6 @@ def get_gps(interval):
     time_before = now - 60
     time_after = now
 
-    con = sqlite3.connect("./CVRS_local.sqlite3")
     df = pd.read_sql_query('SELECT Latitude, Longitude FROM gps WHERE Time > "{}" AND Time <= "{}";'
                            .format(time_before, time_after), con)
 
@@ -350,18 +364,23 @@ def gen_cps(interval):
     time_before = now - 60
     time_after = now
 
-    con = sqlite3.connect("./CVRS_local.sqlite3")
-    df = pd.read_sql_query('SELECT CPS from det_0 where Time > "{}" AND Time <= "{}";'
-                           .format(time_before, time_after), con)
+    traces = []
+    minval = []
+    maxval= []
 
-    trace = Scatter(
-        y=df['CPS'],
-        line=Line(
-            color='#42C4F7'
-        ),
-        hoverinfo='skip',
-        mode='lines'
-    )
+    for i in range(4):
+        df = pd.read_sql_query('SELECT CPS from det_{} where Time > "{}" AND Time <= "{}";'
+                               .format(i, time_before, time_after), con)
+        traces += [Scatter(
+            y=df['CPS'],
+            line=Line(
+                color=colors[i]
+            ),
+            hoverinfo='skip',
+            mode='lines'
+        )]
+        minval += [min(df['CPS'])]
+        maxval += [max(df['CPS'])]
 
     layout = Layout(
         height=450,
@@ -376,12 +395,12 @@ def gen_cps(interval):
             title='Time Elapsed (sec)'
         ),
         yaxis=dict(
-            range=[min(df['CPS'] - 50),
-                   max(df['CPS'] + 50)],
+            range=[min(minval) - 50,
+                   max(maxval) + 50],
             showline=False,
             fixedrange=True,
             zeroline=False,
-            nticks=max(6, int(round(df['CPS'].iloc[-1] / 10))),
+            nticks=6,
             title='Counts'
         ),
         margin=Margin(
@@ -391,7 +410,7 @@ def gen_cps(interval):
         )
     )
 
-    return Figure(data=[trace], layout=layout)
+    return Figure(data=traces, layout=layout)
 
 
 # @app.callback(Output('wind-direction', 'figure'), [Input('gamma-cps-update', 'n_intervals')])
@@ -482,24 +501,24 @@ def gen_wind_histogram(interval):
     now = get_time()
     time_before = now - 60
     time_after = now
+
+    traces = []
     
+    for i in range(4):
+        df = pd.read_sql_query('SELECT Spectrum_Array from det_{} where Time > "{}" AND Time <= "{}";'
+                               .format(i, time_before, time_after), con)
 
-    con = sqlite3.connect("./CVRS_local.sqlite3")
-
-    df = pd.read_sql_query('SELECT Spectrum_Array from det_0 where Time > "{}" AND Time <= "{}";'
-                           .format(time_before, time_after), con)
-
-    spectrum = df['Spectrum_Array'].apply(lambda x: np.array([float(lol) for lol in x.split(',')]))
-    spectrum = spectrum.sum()
-
-    trace = Scatter(
-        y=spectrum,
-        line=Line(
-            color='#42C4F7'
-        ),
-        hoverinfo='skip',
-        mode='lines'
-    )
+        spectrum = df['Spectrum_Array'].apply(lambda x: np.array([float(lol) for lol in x.split(',')]))
+        spectrum = spectrum.sum()
+    
+        traces += [Scatter(
+            y=spectrum,
+            line=Line(
+                color=colors[i]
+            ),
+            hoverinfo='skip',
+            mode='lines'
+        )]
 
     layout = Layout(
         height=450,
@@ -512,8 +531,8 @@ def gen_wind_histogram(interval):
             title='Channel Number'
         ),
         yaxis=dict(
-            range=[min(0, min(spectrum)),
-                   max(45, max(spectrum))],
+            range=[0,
+                   100],
             showline=False,
             fixedrange=True,
             zeroline=False,
@@ -525,7 +544,7 @@ def gen_wind_histogram(interval):
             r=50
         )
     )
-    return Figure(data=[trace], layout=layout)
+    return Figure(data=traces, layout=layout)
 
 
 def start_thrift_server():
