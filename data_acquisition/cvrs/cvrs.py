@@ -502,6 +502,8 @@ def gen_wind_histogram(interval):
     time_before = now - 60
     time_after = now
 
+    bin_number = 4096
+
     traces = []
     
     for i in range(4):
@@ -510,6 +512,7 @@ def gen_wind_histogram(interval):
 
         spectrum = df['Spectrum_Array'].apply(lambda x: np.array([float(lol) for lol in x.split(',')]))
         spectrum = spectrum.sum()
+        counts = rebin(spectrum, bin_number)
     
         traces += [Scatter(
             y=spectrum,
@@ -523,7 +526,7 @@ def gen_wind_histogram(interval):
     layout = Layout(
         height=450,
         xaxis=dict(
-            range=[0, 4096],
+            range=[0, bin_number],
             showgrid=False,
             showline=False,
             zeroline=False,
@@ -545,6 +548,11 @@ def gen_wind_histogram(interval):
         )
     )
     return Figure(data=traces, layout=layout)
+
+
+def rebin(data, new_bin_number):
+    [counts, bin_edges] = np.histogram(data, bins=new_bin_number)
+    return counts
 
 
 def start_thrift_server():
