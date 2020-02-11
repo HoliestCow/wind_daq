@@ -564,7 +564,7 @@ class PTU:
             # intSpectrum = [int(x) for x in self.gammaHandlingData[i, :]]
 
             # HACK: This is to fix that offset issue since CHannel 2 is dead.
-            if str(i) in self.readout.current_measurement:
+            if i < 2: 
                 intSpectrum = [int(x) for x in self.readout.current_measurement[str(i)]['energy_spectrum']]
             else:
                 intSpectrum = [int(x) for x in self.readout.current_measurement[str(i + 1)]['energy_spectrum']]

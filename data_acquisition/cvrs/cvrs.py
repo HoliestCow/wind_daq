@@ -53,8 +53,6 @@ from wind_daq.data_acquisition.utils.database import DatabaseOperations
 # start_clock = dt.datetime.now()
 import datetime
 
-con = sqlite3.connect("./CVRS_local.sqlite3")
-
 colors = [
     '#1f77b4',  # muted blue
     '#ff7f0e',  # safety orange
@@ -282,6 +280,7 @@ def get_gps(interval):
     time_before = now - 60
     time_after = now
 
+    con = sqlite3.connect("./CVRS_local.sqlite3")
     df = pd.read_sql_query('SELECT Latitude, Longitude FROM gps WHERE Time > "{}" AND Time <= "{}";'
                            .format(time_before, time_after), con)
 
@@ -363,6 +362,8 @@ def gen_cps(interval):
     now = get_time()
     time_before = now - 60
     time_after = now
+
+    con = sqlite3.connect("./CVRS_local.sqlite3")
 
     traces = []
     minval = []
@@ -504,6 +505,7 @@ def gen_wind_histogram(interval):
 
     bin_number = 4096
 
+    con = sqlite3.connect("./CVRS_local.sqlite3")
     traces = []
     
     for i in range(4):
