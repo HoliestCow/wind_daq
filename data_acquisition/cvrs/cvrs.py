@@ -577,8 +577,8 @@ def start_thrift_server():
 
 def start_webapp_server():
     print('Starting web server.')
-    app.run_server(host='0.0.0.0', port=9090, debug=True)
-    # app.run_server(port=9090, debug=True)
+    # app.run_server(host='0.0.0.0', port=9090, debug=True)
+    app.run_server(port=9090, debug=True)
     return
 
 def get_time():
