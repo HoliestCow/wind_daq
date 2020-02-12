@@ -389,7 +389,7 @@ def gen_cps(interval):
     layout = Layout(
         height=450,
         xaxis=dict(
-            # range=[0, 60],
+            range=[-60, 0],
             showgrid=False,
             showline=False,
             zeroline=False,
@@ -583,7 +583,7 @@ def start_thrift_server():
 def start_webapp_server():
     print('Starting web server.')
     # app.run_server(host='0.0.0.0', port=9090, debug=True)
-    app.run_server(port=9090, debug=True)
+    app.run_server(port=9090, debug=False)
     return
 
 def get_time():

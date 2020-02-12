@@ -5,6 +5,7 @@ import re
 import pytz
 import numpy as np
 import matplotlib.pyplot as plt
+import time
 
 
 class CompassReadout:
@@ -13,7 +14,7 @@ class CompassReadout:
         self.current_histogram = None
         self.readout_dir = dataDir
         self.archive_dir = os.path.join(self.readout_dir, "measurement_archive")
-        self.reset_counter = 0
+        self.reset_counter = -1
 
         self.reference_datetime = {}
         self.current_datetime = {}
@@ -153,6 +154,10 @@ class CompassReadout:
         return 
 
     def update_measurement(self):
+        if self.reset_counter < 0:
+            self.toarchive = glob.glob(os.path.join(self.readout_dir, '*.txt'))
+            self.archive_files()
+            time.sleep(3)
         self.current_measurement = None
         # analyze files in the default location
         filelist = glob.glob(os.path.join(self.readout_dir, '*.txt'))
@@ -170,6 +175,7 @@ class CompassReadout:
             self.toarchive = glob.glob(os.path.join(self.readout_dir, '*.txt'))
             self.reset_counter = 0
             print('reset files')
+            time.sleep(3)
         return
 
     def plotvstime(self):
