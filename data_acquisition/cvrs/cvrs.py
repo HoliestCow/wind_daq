@@ -372,9 +372,10 @@ def gen_cps(interval):
     maxval= []
 
     for i in range(4):
-        df = pd.read_sql_query('SELECT CPS from det_{} where Time > "{}" AND Time <= "{}";'
+        df = pd.read_sql_query('SELECT CPS,Time from det_{} where Time > "{}" AND Time <= "{}";'
                                .format(i, time_before, time_after), con)
         traces += [Scatter(
+            x=df['Time'] - now,
             y=df['CPS'],
             line=Line(
                 color=colors[i]
@@ -388,14 +389,14 @@ def gen_cps(interval):
     layout = Layout(
         height=450,
         xaxis=dict(
-            range=[0, 60],
+            # range=[0, 60],
             showgrid=False,
             showline=False,
             zeroline=False,
             fixedrange=True,
-            tickvals=[0, 10, 20, 30, 40, 50, 60],
-            ticktext=['60', '50', '40', '30', '20', '10', '0'],
-            title='Time Elapsed (sec)'
+            # tickvals=[0, 10, 20, 30, 40, 50, 60],
+            # ticktext=['60', '50', '40', '30', '20', '10', '0'],
+            title='Time'
         ),
         yaxis=dict(
             range=[min(minval) - 50,
