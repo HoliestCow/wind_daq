@@ -13,11 +13,14 @@ class CompassReadout:
         self.current_histogram = None
         self.readout_dir = dataDir
         self.archive_dir = os.path.join(self.readout_dir, "measurement_archive")
+        self.reset_counter = 0
 
         self.reference_datetime = {}
         self.current_datetime = {}
 
         self.data = {}
+
+        self.toarchive = []
 
         self.initialize_dir_structure()
         return
@@ -69,9 +72,7 @@ class CompassReadout:
                 histogram[counter] = int(meh)
                 counter += 1
             total_counts = np.sum(histogram[100:])
-            print('================')
-            print(total_counts)
-            print('===============')
+            # total_counts = np.sum(histogram)
 
             answers['counts'] = total_counts
             answers['energy_spectrum'] = np.array(histogram)
@@ -79,12 +80,13 @@ class CompassReadout:
             self.data[channel_number][datetime_obj] = answers
         return
 
-    def archive_files(self, filelist):
-        for filename in filelist:
+    def archive_files(self):
+        for filename in self.toarchive:
             just_filename = os.path.split(filename)[-1]
             absolute_path_before = os.path.join(self.readout_dir, just_filename)
             absolute_path_after = os.path.join(self.archive_dir, just_filename)
             os.rename(absolute_path_before, absolute_path_after)
+        self.toarchive = []
         return
 
     def pair_data(self):
@@ -94,15 +96,19 @@ class CompassReadout:
             current_datetime = self.current_datetime[channel]
             data = self.data[channel][current_datetime]
             reference_datetime = self.reference_datetime[channel]
-            print(reference_datetime)
-            print(current_datetime)
             reference_data = self.data[channel][reference_datetime]
             counts = data['counts'] - reference_data['counts']
             if counts < 0:
-                print(current_datetime)
-                print(reference_datetime)
-                print(data['counts'])
-                print(reference_data['counts'])
+                print(channel)
+                print('current time: ', current_datetime, data['counts'])
+                print('reference time: ', reference_datetime, reference_data['counts'])
+                print('==================')
+                print('==================')
+                print('==================')
+                print('==================')
+                print('==================')
+                print('==================')
+                print('==================')
             energy_spectrum = data['energy_spectrum'] - reference_data['energy_spectrum']
             out_dict[channel] = {
                     'counts': counts,
@@ -111,7 +117,10 @@ class CompassReadout:
                     'datetime_obj': data['datetime_obj'],
                     'datestr': data['datestr'],
                     'timestr': data['timestr']}
+            print(self.data[channel][reference_datetime]['filename'])
+            self.toarchive += [self.data[channel][reference_datetime]['filename']]
             self.reference_datetime[channel] = current_datetime
+
         self.current_measurement = out_dict
         return
 
@@ -130,15 +139,16 @@ class CompassReadout:
         chosen_datetime = {}
         previous_datetime = {}
         for channel in timedict:
+            # NOTE: only yank the second to last
             # have to yank the max time and the second to max time.
             # This is so I can get that seconds worth of data via subtraction.
             timedict[channel].sort()
             if len(timedict[channel]) > 1:
-                self.reference_datetime[channel] = timedict[channel][-2]
-                chosen_datetime[channel] = timedict[channel][-1]
+                self.reference_datetime[channel] = timedict[channel][-3]
+                chosen_datetime[channel] = timedict[channel][-2]
             else:
                 # previous_datetime[channel] = timedict[channel][-1]
-                chosen_datetime[channel] = timedict[channel][-1]
+                chosen_datetime[channel] = timedict[channel][-2]
         self.current_datetime = chosen_datetime
         return 
 
@@ -152,7 +162,14 @@ class CompassReadout:
         self.get_latest_datetime_per_channel()
 
         self.pair_data()  # reorganize to make a dict keyed by channel.
-        self.archive_files(filelist)  # last step
+        self.archive_files()  # last step
+
+        self.reset_counter += 1
+
+        if self.reset_counter > 30:
+            self.toarchive = glob.glob(os.path.join(self.readout_dir, '*.txt'))
+            self.reset_counter = 0
+            print('reset files')
         return
 
     def plotvstime(self):

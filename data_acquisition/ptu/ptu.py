@@ -535,7 +535,6 @@ class PTU:
             args=(self.gammaHandlingState,))
         self.caenlib_thread.start()
         time.sleep(10)
-        print('started caenlib spool')
         # t1.join()
         # NOTE: Have to test by setting self.gammaHandlingState to not zero and check in C.
         # Make sure it's reading from the pointer directly in each loop.
@@ -560,9 +559,7 @@ class PTU:
             # gammaSpec += [snapshot]
             # gammaCounts += [np.sum(snapshots)]
             #############################################
-            print('before intSpec')
             # intSpectrum = [int(x) for x in self.gammaHandlingData[i, :]]
-            print(self.readout.current_datetime)
 
             # HACK: This is to fix that offset issue since CHannel 2 is dead.
             if i < 2: 
@@ -571,8 +568,6 @@ class PTU:
             else:
                 intSpectrum = [int(x) for x in self.readout.current_measurement[str(i + 1)]['energy_spectrum']]
                 grossCounts = self.readout.current_measurement[str(i + 1)]['counts']
-            print(sum(intSpectrum))
-            print('after intSpec')
             integerSpectrum = Spectrum(
                 spectrumInt=intSpectrum,
                 format=SpectrumFormat.ARRAY,
@@ -596,7 +591,6 @@ class PTU:
                 counts=grossCounts,
                 liveTime=livetime,
                 realTime=realtime)]
-            print(sum(intSpectrum))
         return gammaSpectrumData, gammaGrossCountData
 
     def get_streamIndexData(self):
@@ -612,7 +606,6 @@ class PTU:
         return x
 
     def measurement_spool(self, measurement_time):
-        print('starting  measurement spool')
         # for yolo in range(measurement_time):
         self.readout = CompassReadout(self.dataDir)
         for i in range(measurement_time):
@@ -678,7 +671,6 @@ class PTU:
                 streamIndexData=streamIndexData)
                 # configuration=configuration)
             d = time.time()
-            print('Payload construction {}s'.format(d-c))
             c = time.time()
 
             self.payload = dataPayload
@@ -689,7 +681,6 @@ class PTU:
         return
 
     def get_navigationData(self):
-        print('polling vectornav')
         # ypr = self.gps.read_yaw_pitch_roll()  # Should be a 3v
         lla_register = self.gps.read_gps_solution_lla()  # ECEF register
 
@@ -755,21 +746,16 @@ class PTU:
 
         self.initialize_unitDefinition()
         # Initiate handshake
-        print('Initiating handhsake')
         session = client.registerPtu(unitDefinition=self.unitDefinition)
-        print('Shook hands')
         # time.sleep(5)  # this method returns a session class from CVRSServices
 
         self.get_status()
         self.get_systemDefinition()
         self.get_systemConfiguration()
         self.get_recordingUpdate()
-        print('defininig')
         ptu_message = client.define(session.sessionId, self.status,
                                     self.systemDefinition, self.systemConfiguration,
                                     self.recordingUpdate)
-        print('defined')
-        print('initializing db')
         self.db = DatabaseOperations('./PTU_local.sqlite3')
         self.db.initialize_structure(self.systemDefinition)
 
@@ -801,7 +787,6 @@ class PTU:
         for lol in range(measurement_time):
             # NOTE: There should be a sleep for one second for each independent process.
             # NOTE: Fixed time.sleep messes with the payload. Needs to be variable time.sleep().I assume each process takes less than one second.
-            print('sleeping for: ', timetosleep)
             if timetosleep > 0:
                 time.sleep(timetosleep)  # Sleep for one second
             a = time.time()
@@ -818,22 +803,14 @@ class PTU:
                 status=self.status,
                 definitionAndConfigurationUpdate=definitionAndConfigurationUpdate)
             d = time.time()
-            print('Report Status {}s'.format(d - c))
             # print(self.payload)
-            print('trying to pushdata')
             isGood = client.pushData(
                 sessionId=session.sessionId,
                 datum=self.payload,
                 definitionAndConfigurationUpdate=definitionAndConfigurationUpdate)
             # time.sleep(5)
-            print(isGood)
-            print('imadeit???')
-            print('================')
-            print('called the function')
             d = time.time()
-            print(isGood)
             while not isGood:
-                print('delivery failure')
                 # not sure if sleep is good here. or continuous trying
                 isGood = client.pushData(
                     sessionId=session.sessionId,
@@ -843,7 +820,6 @@ class PTU:
             if isGood:
                 # push data into own PTU_local
                 self.db.stack_datum(self.payload)
-            print('Payload delivery {}s'.format(d - c))
 
             # QUESTION: Write everytime I stack into PTU Local? Or write everytime I push?
 
@@ -857,7 +833,6 @@ class PTU:
                 sessionId=session.sessionId,
                 acknowledgements=acks)
             b = time.time()
-            print('time elapsed: {}'.format(b - a))
             timetosleep = 1 - (b - a)
         # NOTE: Frankly I should never get to the close, since I'll be infinitely looping
         # self.gammaHandlingState[0] = 3
@@ -865,7 +840,6 @@ class PTU:
         self.caenlib_thread.stop()
         self.payload_thread.stop()
         self.transport.close()
-        print('getting out of main_loop')
         return
 
 

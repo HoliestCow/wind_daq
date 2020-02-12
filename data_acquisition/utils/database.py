@@ -63,19 +63,16 @@ class DatabaseOperations(object):
         gamma_flag = True
         gps_flag = True
         camera_flag = False
-        print('stacking datum')
         if datum is None:
-            print('no data')
+            print('nodata')
             gamma_flag = False
             gps_flag = False
         elif datum.gammaSpectrumData is None:
             print('no data in gammaSpec')
             gamma_flag = False
         elif datum.navigationData is None:
-            print('no gps data in datum')
             gps_flag = False
         elif datum.streamIndexData is None:
-            print('no videostreaming data in datum')
             camera_flag = False
         # print(datum)
         c = time.time()
@@ -98,7 +95,6 @@ class DatabaseOperations(object):
                 # self.c.execute("INSERT INTO det_{}(Time, PositionId, CPS, Spectrum_Array) VALUES ({}, {}, {}, {});".format(i, timestamp, positionid, cps, text_array))
                 self.c.execute("INSERT INTO det_{}(Time, PositionId, CPS, Spectrum_Array) VALUES ({}, {}, {}, {});".format(i, timestamp, positionid, cps, extracted_array))
         if gps_flag:
-            print('======\n======\nIHAVEGPSDATA\n========\n=======')
             for i in range(len(datum.navigationData)):
                 piece = datum.navigationData[i]
                 timestamp = piece.timeStamp
@@ -113,7 +109,6 @@ class DatabaseOperations(object):
                     timestamp, latitude, longitude))
 
         if camera_flag:
-            print('========\n======\nIHAVECAMERAFOTO\n===========\n======')
             for i in range(len(datum.streamIndexData)):
                 piece = datum.streamIndexData[i]
                 # determine if this is siamfc or yolo
@@ -144,7 +139,6 @@ class DatabaseOperations(object):
 
         self.conn.commit()
         d = time.time()
-        print('DB write: {}s'.format(d - c))
         return
 
     def get_dataSince(self, start, stop):

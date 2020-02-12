@@ -221,6 +221,19 @@ app.layout = html.Div([
         ], className='six columns wind-speed'), # twelve / six controls the width of the space.
 
         html.Div([
+        dcc.Graph(id='spectrum-histogram',
+                  figure=Figure(
+                      layout=Layout(
+                          title='Spectrum'
+                      )
+                  )),
+    ], className='twelve columns spectrum-histogram')
+], style={'padding': '0px 10px 15px 10px',
+              'marginLeft': 'auto', 'marginRight': 'auto', "width": "900px",
+              'boxShadow': '0px 0px 5px 5px rgba(204,204,204,0.4)'}),
+
+
+        html.Div([
             # html.Div([
             #     html.H3("WIND DIRECTION")
             # ], className='Title'),
@@ -232,23 +245,12 @@ app.layout = html.Div([
                       )),
         ], className='five columns wind-polar'),
         dcc.Interval(id='periodic-update', interval=1000, n_intervals=0),
-    ], className='row gamma-row'),
+    ], className='row gamma-row')
 # ], className='row wind-histo-polar'),
 # ], style={'padding': '0px 10px 15px 10px',
 #           'marginLeft': 'auto', 'marginRight': 'auto', "width": "900px",
 #           'boxShadow': '0px 0px 5px 5px rgba(204,204,204,0.4)'})
 
-    html.Div([
-        dcc.Graph(id='spectrum-histogram',
-                  figure=Figure(
-                      layout=Layout(
-                          title='Spectrum'
-                      )
-                  )),
-    ], className='twelve columns spectrum-histogram')
-], style={'padding': '0px 10px 15px 10px',
-              'marginLeft': 'auto', 'marginRight': 'auto', "width": "900px",
-              'boxShadow': '0px 0px 5px 5px rgba(204,204,204,0.4)'})
         # html.Div([
         #     html.Div([
         #         html.H3("WIND DIRECTION")
