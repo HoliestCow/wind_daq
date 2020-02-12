@@ -98,6 +98,11 @@ class CompassReadout:
             print(current_datetime)
             reference_data = self.data[channel][reference_datetime]
             counts = data['counts'] - reference_data['counts']
+            if counts < 0:
+                print(current_datetime)
+                print(reference_datetime)
+                print(data['counts'])
+                print(reference_data['counts'])
             energy_spectrum = data['energy_spectrum'] - reference_data['energy_spectrum']
             out_dict[channel] = {
                     'counts': counts,
