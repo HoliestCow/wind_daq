@@ -503,7 +503,7 @@ def gen_wind_histogram(interval):
     time_before = now - 60
     time_after = now
 
-    bin_number = 4096
+    bin_number = 2**14
 
     con = sqlite3.connect("./CVRS_local.sqlite3")
     traces = []
@@ -514,8 +514,8 @@ def gen_wind_histogram(interval):
 
         spectrum = df['Spectrum_Array'].apply(lambda x: np.array([float(lol) for lol in x.split(',')]))
         spectrum = spectrum.sum()
-        counts = rebin(spectrum, bin_number)
-    
+        # counts = rebin(spectrum, bin_number)
+
         traces += [Scatter(
             y=spectrum,
             line=Line(
@@ -528,7 +528,7 @@ def gen_wind_histogram(interval):
     layout = Layout(
         height=450,
         xaxis=dict(
-            range=[0, bin_number],
+            range=[0, bin_number-1],
             showgrid=False,
             showline=False,
             zeroline=False,
@@ -537,7 +537,7 @@ def gen_wind_histogram(interval):
         ),
         yaxis=dict(
             range=[0,
-                   100],
+                   50],
             showline=False,
             fixedrange=True,
             zeroline=False,

@@ -77,7 +77,7 @@ class DatabaseOperations(object):
         elif datum.streamIndexData is None:
             print('no videostreaming data in datum')
             camera_flag = False
-        print(datum)
+        # print(datum)
         c = time.time()
         if gamma_flag:
             for i in range(len(datum.gammaSpectrumData)):

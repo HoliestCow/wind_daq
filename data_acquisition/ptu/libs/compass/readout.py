@@ -68,7 +68,7 @@ class CompassReadout:
                 meh = line.strip()
                 histogram[counter] = int(meh)
                 counter += 1
-            total_counts = np.sum(histogram)
+            total_counts = np.sum(histogram[100:])
             print('================')
             print(total_counts)
             print('===============')
@@ -158,7 +158,9 @@ class CompassReadout:
                 time += [datetime_obj]
                 counts += [self.data[channel][datetime_obj]['counts']]
             fig = plt.figure()
-            plt.plot(time, counts, '.')
+            sorted_counts = [x for _,x in sorted(zip(time, counts))]
+            time = sorted(time)
+            plt.plot(time[1:], np.diff(sorted_counts), '.')
             fig.savefig('channel{}_countsvstime.png'.format(channel))
             plt.close()
         return

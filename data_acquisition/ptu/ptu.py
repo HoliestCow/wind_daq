@@ -562,12 +562,15 @@ class PTU:
             #############################################
             print('before intSpec')
             # intSpectrum = [int(x) for x in self.gammaHandlingData[i, :]]
+            print(self.readout.current_datetime)
 
             # HACK: This is to fix that offset issue since CHannel 2 is dead.
             if i < 2: 
                 intSpectrum = [int(x) for x in self.readout.current_measurement[str(i)]['energy_spectrum']]
+                grossCounts = self.readout.current_measurement[str(i)]['counts']
             else:
                 intSpectrum = [int(x) for x in self.readout.current_measurement[str(i + 1)]['energy_spectrum']]
+                grossCounts = self.readout.current_measurement[str(i + 1)]['counts']
             print(sum(intSpectrum))
             print('after intSpec')
             integerSpectrum = Spectrum(
@@ -590,7 +593,7 @@ class PTU:
                 componentId=self.uuid_dict['GammaDetector'],
                 timeStamp=self.get_time(),
                 health=Health.Nominal,
-                counts=int(sum(intSpectrum[100:])),
+                counts=grossCounts,
                 liveTime=livetime,
                 realTime=realtime)]
             print(sum(intSpectrum))
@@ -825,6 +828,7 @@ class PTU:
             # time.sleep(5)
             print(isGood)
             print('imadeit???')
+            print('================')
             print('called the function')
             d = time.time()
             print(isGood)
