@@ -18,7 +18,7 @@ def plot_cps(con, start_time, end_time, output_prefix):
     for i in range(4):
         df = pd.read_sql_query('SELECT CPS,Time from det_{} where Time > "{}" AND Time <= "{}";'
                                .format(i, start_time, end_time), con)
-        plt.plot(df['Time'], df['CPS'], colors[i])
+        plt.plot(df['Time'][100:], df['CPS'][100:], colors[i])
     plt.xlabel('Time')
     plt.ylabel('Count rate (cps')
     fig.savefig('{}_plot_cps.png'.format(output_prefix))
@@ -81,6 +81,7 @@ def main():
     con = sqlite3.connect("./cvrs/CVRS_local.sqlite3")
     output_prefix = 'cvrs'
     start_time, end_time = get_alltime(con)
+    # start_time = 89E9
     plot_cps(con, start_time, end_time, output_prefix)
     plot_spectra(con, start_time, end_time, output_prefix)
     plot_gps(con, start_time, end_time, output_prefix)
@@ -88,6 +89,7 @@ def main():
     con = sqlite3.connect("./ptu/PTU_local.sqlite3")
     output_prefix = 'ptu'
     start_time, end_time = get_alltime(con)
+    # start_time = 89E9
     plot_cps(con, start_time, end_time, output_prefix)
     plot_spectra(con, start_time, end_time, output_prefix)
     plot_gps(con, start_time, end_time, output_prefix)

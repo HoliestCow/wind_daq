@@ -414,7 +414,7 @@ class PTU:
         # below is for the temperature sensor on the VN 300. Skip for now.
         # self.get_environmentDefinitions()
         # below works, I was just testing just the gamma stuf
-        # self.get_navigationDefinitions()
+        self.get_navigationDefinitions()
 
         # I have to call get_contextVideo before videostreaming since it
         # initializes stuff I need.
@@ -425,7 +425,7 @@ class PTU:
             gammaSpectrumDefinitions=self.gammaSpectrumDefinitions,
             gammaGrossCountDefinitions=self.gammaGrossCountDefinitions,
             # environmentalDefinitions=self.environmentDefinitions,
-            # navigationSensorDefinitions=self.navigationDefinitions,
+            navigationSensorDefinitions=self.navigationDefinitions,
             # contextVideoDefinitions=self.contextVideoDefinitions,
             timeStamp=self.get_time(),
             apiVersion='yolo')
@@ -628,8 +628,8 @@ class PTU:
             neutronSpectrumData = []
             neutronGrossCountData = []
 
-            navigationData = []
-            # navigationData = [self.get_navigationData()]
+            # navigationData = []
+            navigationData = [self.get_navigationData()]
             # environmentalData = self.get_environmentalData()  # Temperature and pressure data from the GPS module
             videoData = []
             pointCloudData = []
@@ -658,7 +658,7 @@ class PTU:
                 # neutronSpectrumData=neutronSpectrumData,
                 # neutronGrossCountData=neutronGrossCountData,
                 # environmentalData=environmentalData,
-                # navigationData=navigationData)
+                navigationData=navigationData)
                 # videoData=videoData,
                 # pointCloudData=pointCloudData,
                 # voxelData=voxelData,
@@ -668,7 +668,7 @@ class PTU:
                 # boundingBoxes=boundingboxes,
                 # markers=markers,
                 # algorithmData=algorithmData,
-                streamIndexData=streamIndexData)
+                # streamIndexData=streamIndexData)
                 # configuration=configuration)
             d = time.time()
             c = time.time()
@@ -773,7 +773,7 @@ class PTU:
         self.payload_thread.start()
 
         # starting navigation services.
-        # self.start_gps()
+        self.start_gps()
 
         # start camera acquisition
         self.camera = {}
