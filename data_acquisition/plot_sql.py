@@ -12,7 +12,7 @@ def get_alltime(con):
     time_after = max(df['Time'])
     return time_before, time_after
 
-def plot_cps(con, start_time, end_time):
+def plot_cps(con, start_time, end_time, output_prefix):
     colors = ['r.', 'g.', 'b.', 'm.']
     fig = plt.figure()
     for i in range(4):
@@ -21,14 +21,13 @@ def plot_cps(con, start_time, end_time):
         plt.plot(df['Time'], df['CPS'], colors[i])
     plt.xlabel('Time')
     plt.ylabel('Count rate (cps')
-    fig.savefig('plot_cps.png')
+    fig.savefig('{}_plot_cps.png'.format(output_prefix))
     plt.close()
     return
 
-def plot_spectra(con, start_time, end_time):
+def plot_spectra(con, start_time, end_time, output_prefix):
     bin_number = 2**14
 
-    con = sqlite3.connect("./CVRS_local.sqlite3")
     colors = ['r.', 'g.', 'b.', 'm.']
     fig = plt.figure()
      
@@ -39,13 +38,14 @@ def plot_spectra(con, start_time, end_time):
         spectrum = spectrum.sum()
         # stuff = rebin(spectrum, 4096)
         if i < 2:
-            plt.plot(spectrum[:4096], colors[i])
+            # plt.plot(spectrum[:4096], colors[i])
+            plt.plot(spectrum, colors[i])
         else:
-            stuff = rebin(spectrum, 8192)
-            plt.plot(stuff[:4096], colors[i])
+            # stuff = rebin(spectrum, 4096)
+            plt.plot(spectrum, colors[i])
     plt.xlabel('Channel number')
     plt.ylabel('Counts')
-    fig.savefig('plot_spectra.png')
+    fig.savefig('{}_plot_spectra.png'.format(output_prefix))
     plt.close()
     return
 
@@ -53,7 +53,7 @@ def rebin(data, new_bin_number):
     [counts, bin_edges] = np.histogram(data, bins=new_bin_number)
     return counts
 
-def plot_gps(con, start_time, end_time):
+def plot_gps(con, start_time, end_time, output_prefix):
     # now = int(time.time())
     df = pd.read_sql_query('SELECT Time, Latitude, Longitude FROM gps WHERE Time > "{}" AND Time <= "{}";'
                            .format(start_time, end_time), con)
@@ -65,7 +65,7 @@ def plot_gps(con, start_time, end_time):
     plt.plot(x, y)
     plt.xlabel('Latitude')
     plt.ylabel('Longitude')
-    fig.savefig('plot_gps.png')
+    fig.savefig('{}_plot_gps.png'.format(output_prefix))
     plt.close()
 
     fig = plt.figure()
@@ -73,16 +73,24 @@ def plot_gps(con, start_time, end_time):
     plt.plot(time, y, 'b.')
     plt.xlabel('Time')
     plt.ylabel('Position')
-    fig.savefig('plot_gpsvstime.png')
+    fig.savefig('{}_plot_gpsvstime.png'.format(output_prefix))
     plt.close()
     return 
 
 def main():
-    con = sqlite3.connect("./CVRS_local.sqlite3")
+    con = sqlite3.connect("./cvrs/CVRS_local.sqlite3")
+    output_prefix = 'cvrs'
     start_time, end_time = get_alltime(con)
-    plot_cps(con, start_time, end_time)
-    plot_spectra(con, start_time, end_time)
-    plot_gps(con, start_time, end_time)
+    plot_cps(con, start_time, end_time, output_prefix)
+    plot_spectra(con, start_time, end_time, output_prefix)
+    plot_gps(con, start_time, end_time, output_prefix)
+
+    con = sqlite3.connect("./ptu/PTU_local.sqlite3")
+    output_prefix = 'ptu'
+    start_time, end_time = get_alltime(con)
+    plot_cps(con, start_time, end_time, output_prefix)
+    plot_spectra(con, start_time, end_time, output_prefix)
+    plot_gps(con, start_time, end_time, output_prefix)
     return
 
 main()
