@@ -725,6 +725,7 @@ class PTU:
     def main_loop(self):
 
         # Make socket
+
         # self.transport = TSocket.TSocket('10.130.130.118', 8080)
         self.transport = TSocket.TSocket('localhost', 8080)
 
@@ -760,7 +761,7 @@ class PTU:
         self.db.initialize_structure(self.systemDefinition)
 
         # starting gamma sensor services.
-        measurement_time = 300
+        measurement_time = 99999
         self.payload = None
         # self.gammaHandlingState[0] = 1  # start acquisition. on the clib side
 
@@ -784,7 +785,9 @@ class PTU:
 
         self.camera['yolo_stream'].start()
         timetosleep = 0
-        for lol in range(measurement_time):
+
+        self.isRun = True
+        while self.isRun is True
             # NOTE: There should be a sleep for one second for each independent process.
             # NOTE: Fixed time.sleep messes with the payload. Needs to be variable time.sleep().I assume each process takes less than one second.
             if timetosleep > 0:
@@ -810,21 +813,15 @@ class PTU:
                 definitionAndConfigurationUpdate=definitionAndConfigurationUpdate)
             # time.sleep(5)
             d = time.time()
-            while not isGood:
-                # not sure if sleep is good here. or continuous trying
-                isGood = client.pushData(
-                    sessionId=session.sessionId,
-                    datum=self.payload,
-                    definitionAndConfigurationUpdate=definitionAndConfigurationUpdate)
+
+            tostack = self.payload[-1]  # only stack the last payload in PTU_local
+           
+            self.db.stack_datum(tostack)
 
             if isGood:
-                # push data into own PTU_local
-                self.db.stack_datum(self.payload)
-
-            # QUESTION: Write everytime I stack into PTU Local? Or write everytime I push?
-
-            # Empty the payload buffer
-            self.payload = None
+                # empty payload if it was sent. If it failed, keep it
+                self.payload = None
+                # TODO: reestablish connection????
 
             acks = []
             # NOTE: No way of handling acks right now.
